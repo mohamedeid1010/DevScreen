@@ -1,13 +1,22 @@
 "use client";
 
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip, type TooltipProps } from "recharts";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from "recharts";
 
 type RadarDataPoint = {
   skill: string;
   value: number;
 };
 
-function RadarTooltip({ active, payload }: TooltipProps<number, string>) {
+type RadarTooltipProps = {
+  active?: boolean;
+  payload?: Array<{
+    color?: string;
+    value?: number | string;
+    payload: RadarDataPoint;
+  }>;
+};
+
+function RadarTooltip({ active, payload }: RadarTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 shadow-xl">

@@ -1,0 +1,27 @@
+export const dashboardPageTheme = {
+  page: "space-y-5 text-[#f2eae3]",
+  hero:
+    "relative overflow-hidden rounded-[28px] border border-[#ffffff12] bg-[linear-gradient(180deg,rgba(17,17,19,0.96),rgba(12,12,14,0.98))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] lg:p-7",
+  heroGlow:
+    "pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_right,rgba(228,0,43,0.18),transparent_68%)]",
+  highlightBadge: "border-[#e4002b33] bg-[#e4002b0d] px-3 py-1.5 text-[10px] text-[#ff6568]",
+  contextBadge: "border-[#ffffff12] bg-[#111113] px-3 py-1.5 text-[10px] text-[#a8a29e]",
+  metaPill: "inline-flex items-center gap-2 rounded-full border border-[#ffffff12] bg-[#111113] px-3 py-1.5",
+  searchShell: "flex h-12 min-w-[280px] items-center gap-3 rounded-[8px] border border-[#ffffff12] bg-[#111113] px-4 text-[#a8a29e]",
+  searchInput: "h-full w-full border-0 bg-transparent text-sm text-[#f2eae3] outline-none placeholder:text-[#6b6670]",
+  filterChipBase: "rounded-full border px-3 py-1.5 text-xs transition",
+  filterChipActive: "border-[#e4002b33] bg-[#e4002b0d] text-[#ff6568]",
+  filterChipIdle: "border-[#ffffff12] bg-[#111113] text-[#a8a29e] hover:border-[#ffffff1f] hover:bg-[#17171a] hover:text-[#f2eae3]",
+  statCard: "overflow-hidden rounded-[18px] border border-[#ffffff12] bg-[#111113] shadow-none",
+  statIconWrap: "grid h-11 w-11 place-items-center rounded-2xl border border-[#ffffff12] bg-[#0c0c0e]",
+  panel: "rounded-[22px] border border-[#ffffff12] bg-[#111113] shadow-[0_18px_50px_rgba(0,0,0,0.24)]",
+  panelDivider: "border-b border-[#ffffff0a]",
+  subtlePill: "rounded-full border border-[#ffffff12] bg-[#0c0c0e] px-3 py-1.5 text-xs text-[#a8a29e]",
+  tableHeading: "px-5 py-4 font-mono text-[11px] uppercase tracking-[0.28em] text-[#a8a29e]",
+  tableRow: "border-b border-[#ffffff0a] last:border-b-0",
+  nestedCard: "rounded-[16px] border border-[#ffffff0a] bg-[#0c0c0e] p-4",
+  nestedTag: "rounded-full border border-[#ffffff12] bg-[#17171a] px-2.5 py-1 text-xs text-[#d8d0ca]",
+  outlineButton: "h-11 rounded-[8px] border-[#ffffff12] bg-[#111113] px-4 text-[#f2eae3] hover:bg-[#17171a] hover:text-[#f2eae3]",
+  tableActionButton: "h-10 rounded-[8px] border-[#ffffff12] bg-[#111113] px-4 text-[#f2eae3] hover:bg-[#17171a] hover:text-[#f2eae3]",
+  chartAccentColor: "#ff6568",
+} as const;

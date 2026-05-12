@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
+import { SiteShell } from "@/components/navigation/site-shell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,11 +16,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Devscreen AI",
-    template: "%s | Devscreen AI",
+    default: "DevScreen Demo",
+    template: "%s | DevScreen Demo",
   },
   description:
-    "AI recruiting workspace for recruiter pipelines, candidate profiles, and interview prep.",
+    "Frontend-only hiring demo with a shared recruiter, candidate, and interview flow.",
 };
 
 type RootLayoutProps = Readonly<{
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
         suppressHydrationWarning
         className="min-h-full flex flex-col bg-background text-foreground selection:bg-foreground selection:text-background"
       >
-        {children}
+        <SiteShell>{children}</SiteShell>
       </body>
     </html>
   );
