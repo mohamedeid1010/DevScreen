@@ -84,37 +84,60 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* ── Duckurity design system ── */
+  --background: #09090b;
+  --foreground: #f2eae3;
+  --card: #111113;
+  --card-foreground: #f2eae3;
+  --popover: #1c1c20;
+  --popover-foreground: #f2eae3;
+  --primary: #f99c00;
+  --primary-foreground: #09090b;
+  --secondary: #17171a;
+  --secondary-foreground: #f2eae3;
+  --muted: #111113;
+  --muted-foreground: #a8a29e;
+  --accent: #17171a;
+  --accent-foreground: #f2eae3;
+  --destructive: #e4002b;
+  --border: #ffffff12;
+  --input: #ffffff0f;
+  --ring: #f99c00;
+  --chart-1: #f99c00;
+  --chart-2: #00bb7f;
+  --chart-3: #ac4bff;
+  --chart-4: #3080ff;
+  --chart-5: #ff6568;
+  --sidebar: #0c0c0e;
+  --sidebar-foreground: #f2eae3;
+  --sidebar-primary: #f99c00;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #17171a;
+  --sidebar-accent-foreground: #f2eae3;
+  --sidebar-border: #ffffff12;
+  --sidebar-ring: #f99c00;
+  /* ── Surface tokens ── */
+  --surface-void: #050507;
+  --surface-ground: #09090b;
+  --surface-base: #111113;
+  --surface-raised: #17171a;
+  --surface-overlay: #1c1c20;
+  --surface-spotlight: #222226;
+  /* ── Semantic borders ── */
+  --border-subtle: #ffffff0a;
+  --border-default: #ffffff12;
+  --border-emphasis: #ffffff1f;
+  --border-strong: #ffffff2e;
+  /* ── Foreground tokens ── */
+  --fg-primary: #f2eae3;
+  --fg-secondary: #a8a29e;
+  --fg-tertiary: #a8a29e99;
+  /* ── Brand accent ── */
+  --duck: #f99c00;
+  --duck-subtle: #f99c000d;
+  --duck-muted: #f99c001a;
+  --duck-soft: #f99c004d;
+  --duck-strong: #f99c00cc;
 }
 
 @layer base {

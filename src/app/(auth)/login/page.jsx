@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, Github, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, GitBranch, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const trustSignals = [
@@ -85,7 +85,7 @@ export default function LoginPage() {
 
           <div className="grid gap-3">
             <Button variant="outline" className="h-12 rounded-2xl border-slate-200 bg-transparent text-base">
-              <Github className="size-4" />
+              <GitBranch className="size-4" />
               GitHub SSO
             </Button>
             <Button variant="outline" className="h-12 rounded-2xl border-slate-200 bg-transparent text-base">

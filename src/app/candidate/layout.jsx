@@ -1,80 +1,93 @@
 import Link from "next/link";
-import { ArrowUpRight, BrainCircuit, Compass, LayoutPanelTop, Sparkles, UserRound } from "lucide-react";
+import {
+  ArrowUpRight,
+  BrainCircuit,
+  Compass,
+  GitBranch,
+  LayoutPanelTop,
+  UserRound,
+} from "lucide-react";
 
 const navItems = [
-  { href: "/candidate", label: "Profile", icon: UserRound },
-  { href: "/candidate/interviews/frontend-systems", label: "Interviews", icon: BrainCircuit },
+  { href: "/candidate", label: "Code Vector", icon: UserRound },
+  { href: "/candidate/interviews/frontend-systems", label: "Interview Panel", icon: BrainCircuit },
   { href: "/recruiter", label: "Recruiter view", icon: LayoutPanelTop },
 ];
 
 export default function CandidateLayout({ children }) {
   return (
-    <div className="min-h-screen bg-[linear-gradient(145deg,#f8fafc_0%,#f8fafc_28%,#ecfeff_100%)] text-slate-950">
+    <div className="min-h-screen bg-[#09090b] text-[#f2eae3]">
       <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col lg:flex-row">
-        <aside className="border-b border-slate-200/80 bg-white/85 p-6 backdrop-blur lg:w-80 lg:border-b-0 lg:border-r lg:p-8">
+
+        {/* Sidebar */}
+        <aside className="border-b border-[#ffffff12] bg-[#0c0c0e] p-6 lg:w-72 lg:border-b-0 lg:border-r lg:p-8">
           <Link href="/" className="inline-flex items-center gap-3">
-            <div className="rounded-2xl bg-slate-950 p-3 text-white">
-              <Compass className="size-6" />
+            <div className="rounded-xl bg-[#f2eae3] p-2.5 text-[#09090b]">
+              <Compass className="size-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Candidate</p>
-              <p className="text-lg font-semibold">Signal Portal</p>
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-[#a8a29e]">
+                Candidate
+              </p>
+              <p className="text-base font-semibold text-[#f2eae3]">Signal Portal</p>
             </div>
           </Link>
 
-          <div className="mt-8 rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(255,255,255,0.92))] p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Readiness snapshot</p>
-            <p className="mt-2 text-4xl font-semibold text-slate-950">88%</p>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Your strongest signals come from architecture ownership, mentoring, and a disciplined feedback loop on shipped features.
+          <div className="mt-8 rounded-2xl border border-[#ac4bff1a] bg-[#ac4bff0d] p-4">
+            <p className="font-mono text-xs text-[#a8a29e]">Code Intelligence Score</p>
+            <p className="mt-1.5 font-mono text-3xl font-bold text-[#ac4bff]">88.4%</p>
+            <p className="mt-2 text-xs leading-5 text-[#a8a29e]">
+              NLP-extracted from 23 repos · 1,847 files · last sync 4m ago
             </p>
           </div>
 
-          <nav className="mt-8 space-y-2">
+          <nav className="mt-6 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-950/15 hover:text-slate-950"
+                  className="flex items-center justify-between rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium text-[#a8a29e] transition hover:border-[#ffffff12] hover:bg-[#17171a] hover:text-[#f2eae3]"
                 >
                   <span className="flex items-center gap-3">
                     <Icon className="size-4" />
                     {item.label}
                   </span>
-                  <ArrowUpRight className="size-4 text-slate-400" />
+                  <ArrowUpRight className="size-3.5 text-[#a8a29e]/50" />
                 </Link>
               );
             })}
           </nav>
 
-          <div className="mt-8 rounded-[1.75rem] border border-slate-200 bg-slate-950 p-5 text-white">
-            <div className="flex items-center gap-3 text-sm text-white/70">
-              <Sparkles className="size-4 text-amber-300" />
-              Candidate context
+          <div className="mt-6 rounded-2xl border border-[#ffffff12] bg-[#111113] p-4">
+            <div className="flex items-center gap-2 text-xs text-[#a8a29e]">
+              <GitBranch className="size-3.5 text-[#a8a29e]" />
+              GitHub OAuth active
             </div>
-            <p className="mt-4 text-lg font-semibold">The interview route reuses the same profile signals.</p>
-            <p className="mt-2 text-sm leading-6 text-white/65">
-              That keeps skill radar themes, growth areas, and generated questions aligned with the role you are targeting.
+            <p className="mt-2.5 font-mono text-sm text-[#f2eae3]">github.com/norasalem</p>
+            <p className="mt-1.5 text-xs leading-5 text-[#a8a29e]">
+              Repos and commit patterns feed directly into AI-generated interview questions.
             </p>
           </div>
         </aside>
 
+        {/* Main */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/72 px-6 py-5 backdrop-blur lg:px-8">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <header className="sticky top-0 z-10 border-b border-[#ffffff12] bg-[#09090b]/85 px-6 py-4 backdrop-blur lg:px-8">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Candidate portal</p>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Shared layout for profile and interview prep</h1>
+                <p className="font-mono text-xs text-[#a8a29e]">Candidate Portal</p>
+                <h1 className="text-lg font-semibold tracking-tight text-[#f2eae3]">
+                  Code Intelligence Vector System
+                </h1>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+              <div className="flex items-center gap-2">
+                <div className="rounded-full border border-[#ffffff12] bg-[#111113] px-3 py-1.5 font-mono text-xs text-[#a8a29e]">
                   GitHub synced
                 </div>
-                <div className="rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm text-cyan-700">
-                  2 interviews recommended
+                <div className="rounded-full border border-[#ac4bff1a] bg-[#ac4bff0d] px-3 py-1.5 font-mono text-xs text-[#ac4bff]">
+                  2 interviews ready
                 </div>
               </div>
             </div>
