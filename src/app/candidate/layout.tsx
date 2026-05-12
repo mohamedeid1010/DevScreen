@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ArrowUpRight, BrainCircuit, Compass, LayoutPanelTop, Sparkles, UserRound } from "lucide-react";
 
 const navItems = [
@@ -7,7 +8,11 @@ const navItems = [
   { href: "/recruiter", label: "Recruiter view", icon: LayoutPanelTop },
 ];
 
-export default function CandidateLayout({ children }) {
+type CandidateLayoutProps = Readonly<{
+  children: ReactNode;
+}>;
+
+export default function CandidateLayout({ children }: CandidateLayoutProps) {
   return (
     <div className="min-h-screen bg-[linear-gradient(145deg,#f8fafc_0%,#f8fafc_28%,#ecfeff_100%)] text-slate-950">
       <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col lg:flex-row">

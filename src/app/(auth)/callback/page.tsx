@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Github, Radar, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, GitBranch, Radar, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const callbackSteps = [
@@ -28,7 +28,7 @@ export default function CallbackPage() {
         <div className="flex flex-wrap items-start justify-between gap-6 border-b border-white/10 pb-8">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
-              <Github className="size-4" />
+              <GitBranch className="size-4" />
               Candidate OAuth callback
             </div>
             <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">

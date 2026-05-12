@@ -10,37 +10,38 @@ devscreen/
 ├── CLAUDE.md
 ├── components.json
 ├── eslint.config.mjs
-├── jsconfig.json
+├── next-env.d.ts
 ├── next.config.mjs
 ├── package.json
 ├── postcss.config.mjs
 ├── README.md
+├── tsconfig.json
 ├── public/
 └── src/
     ├── app/
     │   ├── (auth)/
-    │   │   ├── callback/page.jsx
-    │   │   └── login/page.jsx
+    │   │   ├── callback/page.tsx
+    │   │   └── login/page.tsx
     │   ├── candidate/
     │   │   ├── interviews/
-    │   │   │   └── [id]/page.jsx
-    │   │   ├── layout.jsx
-    │   │   └── page.jsx
+    │   │   │   └── [id]/page.tsx
+    │   │   ├── layout.tsx
+    │   │   └── page.tsx
     │   ├── recruiter/
     │   │   ├── jobs/
-    │   │   │   ├── [id]/matches/page.jsx
-    │   │   │   └── new/page.jsx
-    │   │   ├── layout.jsx
-    │   │   └── page.jsx
+    │   │   │   ├── [id]/matches/page.tsx
+    │   │   │   └── new/page.tsx
+    │   │   ├── layout.tsx
+    │   │   └── page.tsx
     │   ├── favicon.ico
     │   ├── globals.css
-    │   ├── layout.js
-    │   └── page.jsx
+    │   ├── layout.tsx
+    │   └── page.tsx
     ├── components/
     │   └── ui/
-    │       └── button.jsx
+    │       └── button.tsx
     └── lib/
-        └── utils.js
+        └── utils.ts
 ```
 
 ## Root-level files
@@ -65,10 +66,16 @@ It defines aliases, style settings, and component generation behavior.
 Use this file for linting rules.
 Add project-wide ESLint configuration here, not inside page files.
 
-### `jsconfig.json`
+### `next-env.d.ts`
 
-Use this file for JavaScript project settings such as path aliases.
-If the team adds aliases or editor-aware config, this is the correct place.
+This file is generated and managed by Next.js for TypeScript support.
+It provides framework-specific type references.
+Do not manually rewrite its content unless the setup is broken.
+
+### `tsconfig.json`
+
+Use this file for TypeScript project settings.
+Put compiler options, path aliases, strictness rules, and included file patterns here.
 
 ### `next.config.mjs`
 
@@ -113,7 +120,7 @@ Use this folder for small reusable helper functions, formatting utilities, and s
 
 ## `src/app/` routing structure
 
-### `src/app/layout.js`
+### `src/app/layout.tsx`
 
 This is the root layout for the entire app.
 Put global HTML structure here.
@@ -142,7 +149,7 @@ Do not place one-page-only styling here if it can live in the page component.
 
 This is the browser tab icon for the app.
 
-### `src/app/page.jsx`
+### `src/app/page.tsx`
 
 This is the landing page for `/`.
 Put homepage-specific content here, such as:
@@ -160,14 +167,14 @@ The folder name helps organize auth-related pages, but `(auth)` does not appear 
 
 Example:
 
-- `src/app/(auth)/login/page.jsx` becomes `/login`
-- `src/app/(auth)/callback/page.jsx` becomes `/callback`
+- `src/app/(auth)/login/page.tsx` becomes `/login`
+- `src/app/(auth)/callback/page.tsx` becomes `/callback`
 
 Use route groups when you want better organization without changing public URLs.
 
 ## Auth routes
 
-### `src/app/(auth)/login/page.jsx`
+### `src/app/(auth)/login/page.tsx`
 
 This is the recruiter login page.
 Put authentication entry UI here, such as:
@@ -177,7 +184,7 @@ Put authentication entry UI here, such as:
 - Short explanation of the login flow.
 - Links to related auth pages.
 
-### `src/app/(auth)/callback/page.jsx`
+### `src/app/(auth)/callback/page.tsx`
 
 This is the GitHub OAuth callback page for candidates.
 Put post-authentication status UI here, such as:
@@ -194,7 +201,7 @@ Put post-authentication status UI here, such as:
 This folder contains all recruiter-facing routes.
 Everything here should support hiring team workflows.
 
-### `src/app/recruiter/layout.jsx`
+### `src/app/recruiter/layout.tsx`
 
 This is the shared recruiter layout.
 Put recruiter-wide shell UI here, such as:
@@ -206,7 +213,7 @@ Put recruiter-wide shell UI here, such as:
 
 Keep route-specific content out of this file.
 
-### `src/app/recruiter/page.jsx`
+### `src/app/recruiter/page.tsx`
 
 This is the main recruiter dashboard at `/recruiter`.
 Put overview content here, such as:
@@ -216,7 +223,7 @@ Put overview content here, such as:
 - Activity feed.
 - Shortcuts to create jobs or review matches.
 
-### `src/app/recruiter/jobs/new/page.jsx`
+### `src/app/recruiter/jobs/new/page.tsx`
 
 This page is for job creation.
 Put role-authoring UI here, such as:
@@ -229,7 +236,7 @@ Put role-authoring UI here, such as:
 
 If the team later adds a true multi-step flow, this is still the correct route for it.
 
-### `src/app/recruiter/jobs/[id]/matches/page.jsx`
+### `src/app/recruiter/jobs/[id]/matches/page.tsx`
 
 This is the dynamic match-results page for one job.
 `[id]` represents the job identifier.
@@ -251,7 +258,7 @@ Use this file when the content changes based on the selected job.
 This folder contains all candidate-facing routes.
 Everything here should support the candidate's profile and interview preparation experience.
 
-### `src/app/candidate/layout.jsx`
+### `src/app/candidate/layout.tsx`
 
 This is the shared candidate layout.
 Put candidate-wide shell UI here, such as:
@@ -261,7 +268,7 @@ Put candidate-wide shell UI here, such as:
 - Reusable layout wrappers.
 - Cross-page actions related to the candidate journey.
 
-### `src/app/candidate/page.jsx`
+### `src/app/candidate/page.tsx`
 
 This is the main candidate profile page at `/candidate`.
 Put candidate summary content here, such as:
@@ -272,7 +279,7 @@ Put candidate summary content here, such as:
 - Readiness indicators.
 - Links to interview preparation pages.
 
-### `src/app/candidate/interviews/[id]/page.jsx`
+### `src/app/candidate/interviews/[id]/page.tsx`
 
 This is the dynamic interview-preparation page.
 `[id]` represents the interview track, role, or scenario identifier.
@@ -288,7 +295,7 @@ Use this page when the question set depends on the selected interview path.
 
 ## Shared non-route code
 
-### `src/components/ui/button.jsx`
+### `src/components/ui/button.tsx`
 
 This file contains the reusable button component.
 Put shared button behavior here, such as:
@@ -300,15 +307,15 @@ Put shared button behavior here, such as:
 
 Do not place page content here.
 
-### `src/lib/utils.js`
+### `src/lib/utils.ts`
 
 This file contains small utility helpers.
 Use it for reusable functions like class merging, formatting helpers, or lightweight shared logic.
 
 ## Team rules for adding new files
 
-1. Put route-specific UI in the nearest `page.jsx` file.
-2. Put shared route shell UI in `layout.jsx`.
+1. Put route-specific UI in the nearest `page.tsx` file.
+2. Put shared route shell UI in `layout.tsx`.
 3. Put reusable visual components in `src/components/`.
 4. Put small helper functions in `src/lib/`.
 5. Use route groups like `(auth)` only for organization, not for public URL changes.

@@ -9,7 +9,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const skills = [
+type SkillMetric = {
+  label: string;
+  value: number;
+};
+
+const skills: SkillMetric[] = [
   { label: "Frontend Architecture", value: 88 },
   { label: "System Design", value: 81 },
   { label: "Performance", value: 84 },
@@ -30,7 +35,7 @@ const readinessThemes = [
   { label: "Interview urgency", value: "High", detail: "Recommended to practice scenario-based architecture questions next." },
 ];
 
-function polarPoint(index, total, value, radius, center) {
+function polarPoint(index: number, total: number, value: number, radius: number, center: number) {
   const angle = (Math.PI * 2 * index) / total - Math.PI / 2;
   const scaledRadius = (value / 100) * radius;
 
@@ -40,7 +45,7 @@ function polarPoint(index, total, value, radius, center) {
   };
 }
 
-function buildPolygon(items, scale, radius, center) {
+function buildPolygon(items: SkillMetric[], scale: number, radius: number, center: number) {
   return items
     .map((item, index) => {
       const point = polarPoint(index, items.length, item.value * scale, radius, center);
@@ -50,7 +55,7 @@ function buildPolygon(items, scale, radius, center) {
     .join(" ");
 }
 
-function buildGrid(items, scale, radius, center) {
+function buildGrid(items: SkillMetric[], scale: number, radius: number, center: number) {
   return items
     .map((_, index) => {
       const point = polarPoint(index, items.length, 100 * scale, radius, center);

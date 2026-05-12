@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
@@ -14,7 +15,11 @@ const navItems = [
   { href: "/recruiter/jobs/frontend-platform/matches", label: "Matches", icon: UsersRound },
 ];
 
-export default function RecruiterLayout({ children }) {
+type RecruiterLayoutProps = Readonly<{
+  children: ReactNode;
+}>;
+
+export default function RecruiterLayout({ children }: RecruiterLayoutProps) {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#020617_0%,#0f172a_46%,#111827_100%)] text-white">
       <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col lg:flex-row">

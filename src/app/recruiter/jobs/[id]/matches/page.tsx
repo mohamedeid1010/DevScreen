@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,6 +9,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+type MatchPageProps = {
+  params: Promise<{ id: string }>;
+};
 
 const matches = [
   {
@@ -51,7 +56,7 @@ const matches = [
   },
 ];
 
-function formatRoleTitle(segment) {
+function formatRoleTitle(segment: string) {
   return segment
     .split("-")
     .filter(Boolean)
@@ -59,7 +64,7 @@ function formatRoleTitle(segment) {
     .join(" ");
 }
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params }: MatchPageProps): Promise<Metadata> {
   const { id } = await params;
 
   return {
@@ -67,7 +72,7 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function MatchesPage({ params }) {
+export default async function MatchesPage({ params }: MatchPageProps) {
   const { id } = await params;
   const roleTitle = formatRoleTitle(id);
   const leader = matches[0];

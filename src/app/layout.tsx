@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import type { ReactNode } from "react";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,7 +13,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: {
     default: "Devscreen AI",
     template: "%s | Devscreen AI",
@@ -20,7 +22,11 @@ export const metadata = {
     "AI recruiting workspace for recruiter pipelines, candidate profiles, and interview prep.",
 };
 
-export default function RootLayout({ children }) {
+type RootLayoutProps = Readonly<{
+  children: ReactNode;
+}>;
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html
       lang="en"

@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   BriefcaseBusiness,
-  Github,
+  GitBranch,
   Radar,
   Sparkles,
   UserRoundSearch,
@@ -131,7 +131,7 @@ export default function Home() {
 
               <div className="mt-6 rounded-[1.75rem] bg-white/6 p-5">
                 <div className="flex items-center gap-3 text-sm text-white/70">
-                  <Github className="size-4" />
+                  <GitBranch className="size-4" />
                   GitHub OAuth feeds candidate profiles straight into structured interview kits.
                 </div>
                 <div className="mt-4 space-y-3">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,6 +9,10 @@ import {
   MessageSquareQuote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+type InterviewPageProps = {
+  params: Promise<{ id: string }>;
+};
 
 const questions = [
   {
@@ -44,7 +49,7 @@ const questions = [
   },
 ];
 
-function formatTrackTitle(segment) {
+function formatTrackTitle(segment: string) {
   return segment
     .split("-")
     .filter(Boolean)
@@ -52,7 +57,7 @@ function formatTrackTitle(segment) {
     .join(" ");
 }
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params }: InterviewPageProps): Promise<Metadata> {
   const { id } = await params;
 
   return {
@@ -60,7 +65,7 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function InterviewQuestionsPage({ params }) {
+export default async function InterviewQuestionsPage({ params }: InterviewPageProps) {
   const { id } = await params;
   const trackTitle = formatTrackTitle(id);
 
