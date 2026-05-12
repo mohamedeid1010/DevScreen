@@ -30,9 +30,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-foreground selection:text-background">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col bg-background text-foreground selection:bg-foreground selection:text-background"
+      >
         {children}
       </body>
     </html>

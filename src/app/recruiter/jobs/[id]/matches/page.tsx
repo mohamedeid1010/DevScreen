@@ -2,26 +2,50 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import {
   ArrowLeft,
-  ArrowRight,
   BrainCircuit,
-  Gauge,
+  CheckCircle2,
+  GitBranch,
   ShieldAlert,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SkillRadar } from "@/components/ui/skill-radar";
 
 type MatchPageProps = {
   params: Promise<{ id: string }>;
 };
 
-const matches = [
+const analysisSteps = [
+  { label: "Fetching GitHub repositories", detail: "23 repos indexed" },
+  { label: "Parsing AST structures", detail: "1,847 files analyzed" },
+  { label: "Computing complexity vectors", detail: "McCabe + Halstead metrics" },
+  { label: "Building skill embeddings", detail: "ada-002 · 1,536-dim vectors" },
+  { label: "Running semantic similarity", detail: "cosine threshold 0.72" },
+];
+
+const candidates = [
   {
+    id: "nora-salem",
     name: "Nora Salem",
-    fit: 92,
+    initials: "NS",
+    score: 87.3,
     location: "Cairo · Hybrid",
     stage: "Ready for final loop",
-    strengths: ["React compiler fluency", "Mentors design system adoption", "Strong performance narratives"],
-    risks: ["Wants strong staff-level peers"],
+    repoCount: 23,
+    topRepo: "react-perf-toolkit",
+    matchSummary:
+      "Nora's open-source contributions in react-perf-toolkit demonstrate advanced compositional patterns and render optimization that directly align with the role's performance requirements. Her commit history shows a systematic approach to API surface reduction, with 73% of PRs including migration guides and clear upgrade paths.",
+    strengths: ["React compiler fluency", "Design system adoption", "Performance budgets", "Mentoring depth"],
+    risks: ["Expects strong staff-level peers"],
+    radarData: [
+      { skill: "Code Modularity", value: 91 },
+      { skill: "Security Awareness", value: 78 },
+      { skill: "Test Coverage", value: 85 },
+      { skill: "API Design", value: 89 },
+      { skill: "Performance Opt.", value: 94 },
+      { skill: "Documentation", value: 76 },
+    ],
     signals: [
       { label: "Technical depth", value: 95 },
       { label: "Execution range", value: 88 },
@@ -29,193 +53,297 @@ const matches = [
     ],
   },
   {
+    id: "karim-adel",
     name: "Karim Adel",
-    fit: 87,
+    initials: "KA",
+    score: 79.1,
     location: "Alexandria · Remote",
     stage: "Needs architecture interview",
-    strengths: ["Large-scale migration work", "Observability mindset", "Strong shipping velocity"],
+    repoCount: 17,
+    topRepo: "node-observability",
+    strengths: ["Large-scale migration", "Observability mindset", "Shipping velocity"],
     risks: ["Less mentoring evidence"],
-    signals: [
-      { label: "Technical depth", value: 89 },
-      { label: "Execution range", value: 92 },
-      { label: "Leadership fit", value: 73 },
-    ],
   },
   {
+    id: "mariam-tarek",
     name: "Mariam Tarek",
-    fit: 82,
+    initials: "MT",
+    score: 74.8,
     location: "Dubai · Hybrid",
     stage: "Great for system-design deep dive",
-    strengths: ["Cross-platform component strategy", "Testing discipline", "Clear tradeoff articulation"],
+    repoCount: 12,
+    topRepo: "cross-platform-ui",
+    strengths: ["Cross-platform strategy", "Testing discipline"],
     risks: ["Prefers smaller product scope"],
-    signals: [
-      { label: "Technical depth", value: 84 },
-      { label: "Execution range", value: 79 },
-      { label: "Leadership fit", value: 80 },
-    ],
+  },
+  {
+    id: "youssef-hassan",
+    name: "Youssef Hassan",
+    initials: "YH",
+    score: 68.2,
+    location: "London · Remote",
+    stage: "Consider for junior-senior transition",
+    repoCount: 9,
+    topRepo: "micro-frontend-shell",
+    strengths: ["Micro-frontend patterns", "Clear tradeoff articulation"],
+    risks: ["Limited design system exposure"],
   },
 ];
 
+function scoreStyle(score: number) {
+  if (score >= 85) return { text: "text-[#00bb7f]", bg: "bg-[#00bb7f0f]", border: "border-[#00bb7f1a]" };
+  if (score >= 75) return { text: "text-[#f99c00]", bg: "bg-[#f99c000d]", border: "border-[#f99c001a]" };
+  if (score >= 65) return { text: "text-[#a8a29e]", bg: "bg-[#ffffff0a]", border: "border-[#ffffff12]" };
+  return { text: "text-[#ff6568]", bg: "bg-[#ff65680f]", border: "border-[#ff65681a]" };
+}
+
 function formatRoleTitle(segment: string) {
-  return segment
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  return segment.split("-").filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
 }
 
 export async function generateMetadata({ params }: MatchPageProps): Promise<Metadata> {
   const { id } = await params;
-
-  return {
-    title: `${formatRoleTitle(id)} Matches`,
-  };
+  return { title: `${formatRoleTitle(id)} Matches` };
 }
 
 export default async function MatchesPage({ params }: MatchPageProps) {
   const { id } = await params;
   const roleTitle = formatRoleTitle(id);
-  const leader = matches[0];
+  const leader = candidates[0];
+  const leaderStyle = scoreStyle(leader.score);
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(34,197,94,0.16),rgba(34,211,238,0.14),rgba(15,23,42,0.8))] p-6 shadow-[0_30px_70px_rgba(2,6,23,0.3)]">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <Button asChild variant="ghost" className="h-9 rounded-full px-0 text-white hover:bg-transparent">
+    <div className="space-y-4">
+
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <section className="rounded-2xl border border-[#ffffff12] bg-[#111113] p-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-3">
+            <Button asChild variant="ghost" className="h-8 rounded-full px-0 text-[#a8a29e] hover:bg-transparent hover:text-[#f2eae3]">
               <Link href="/recruiter">
-                <ArrowLeft className="size-4" />
-                Back to dashboard
+                <ArrowLeft className="size-3.5" />
+                Back
               </Link>
             </Button>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm text-white/72">
-              <Sparkles className="size-4 text-amber-300" />
-              Match results for {roleTitle}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f99c001a] bg-[#f99c000d] px-3 py-1 font-mono text-xs text-[#f99c00]">
+                <span className="size-1.5 animate-pulse rounded-full bg-[#f99c00]" />
+                Semantic Similarity Engine — Active
+              </span>
+              <span className="rounded-full border border-[#ffffff12] bg-[#ffffff0a] px-3 py-1 font-mono text-xs text-[#a8a29e]">
+                Bias-resistant extraction v2.4
+              </span>
             </div>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-              The engine found a tight cluster of candidates with high platform signal.
-            </h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-white/68">
-              This route uses the dynamic role segment to present one visual story: score concentration, candidate strengths, and where human review should spend its time.
-            </p>
+
+            <div>
+              <p className="font-mono text-xs uppercase tracking-widest text-[#a8a29e]">Match Results</p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#f2eae3] sm:text-4xl">{roleTitle}</h1>
+              <p className="mt-2 font-mono text-sm text-[#a8a29e]">
+                {candidates.length} candidates ranked · cosine threshold 0.72 · top score {leader.score}%
+              </p>
+            </div>
           </div>
 
-          <div className="animate-glow rounded-[1.9rem] border border-white/12 bg-slate-950/45 p-5 shadow-[0_0_50px_rgba(34,211,238,0.12)]">
+          <div className="animate-glow shrink-0 rounded-2xl border border-[#ffffff12] bg-[#0c0c0e] p-5 text-center">
             <div
-              className="relative grid h-44 w-44 place-items-center rounded-full"
-              style={{
-                background: `conic-gradient(rgb(34 211 238) ${leader.fit}%, rgba(255,255,255,0.08) 0)`,
-              }}
+              className="relative mx-auto grid h-28 w-28 place-items-center rounded-full"
+              style={{ background: `conic-gradient(#f99c00 ${leader.score}%, #ffffff0a 0)` }}
             >
-              <div className="grid h-32 w-32 place-items-center rounded-full bg-slate-950 text-center">
-                <p className="text-sm text-white/55">Top score</p>
-                <p className="text-4xl font-semibold">{leader.fit}%</p>
+              <div className="grid h-20 w-20 place-items-center rounded-full bg-[#09090b] text-center">
+                <div>
+                  <p className="font-mono text-xl font-bold text-[#f99c00]">{leader.score}%</p>
+                  <p className="font-mono text-[10px] text-[#a8a29e]">top match</p>
+                </div>
               </div>
             </div>
+            <p className="mt-2 font-mono text-[11px] text-[#a8a29e]">semantic match</p>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-        <article className="rounded-[2rem] border border-white/10 bg-white/6 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-white/55">Signal board</p>
-              <h2 className="mt-1 text-2xl font-semibold">Why {leader.name} is currently leading</h2>
-            </div>
-            <Gauge className="size-6 text-cyan-200" />
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
-            {leader.signals.map((signal, index) => (
-              <div key={signal.label} className="rounded-[1.5rem] border border-white/10 bg-slate-950/35 p-4">
-                <div className="flex items-center justify-between text-sm text-white/68">
-                  <span>{signal.label}</span>
-                  <span>{signal.value}%</span>
-                </div>
-                <div className="mt-3 h-2 rounded-full bg-white/10">
-                  <div
-                    className="animate-grow-x h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300"
-                    style={{ width: `${signal.value}%`, animationDelay: `${index * 140}ms` }}
-                  />
-                </div>
+      {/* ── Analysis pipeline ──────────────────────────────────── */}
+      <section className="rounded-2xl border border-[#ffffff12] bg-[#0c0c0e] p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <BrainCircuit className="size-3.5 text-[#f99c00]" />
+          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-[#a8a29e]">
+            Analysis Pipeline — Complete
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-5">
+          {analysisSteps.map((step, i) => (
+            <div
+              key={step.label}
+              className="animate-rise rounded-xl border border-[#ffffff0a] bg-[#111113] p-3"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <div className="flex items-center gap-1.5 text-[#00bb7f]">
+                <CheckCircle2 className="size-3.5 shrink-0" />
+                <span className="font-mono text-[10px] font-medium leading-4">{step.label}</span>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-6 rounded-[1.5rem] border border-amber-300/15 bg-amber-300/8 p-5">
-            <div className="flex items-center gap-3 text-sm text-amber-50/80">
-              <ShieldAlert className="size-4" />
-              Human review focus
+              <p className="mt-1.5 font-mono text-[10px] text-[#a8a29e]/60">{step.detail}</p>
             </div>
-            <p className="mt-3 text-sm leading-6 text-white/75">
-              Validate how comfortably the candidate handles platform influence without direct authority. The fit is high, but peer-level partnership expectations matter.
-            </p>
-          </div>
-        </article>
+          ))}
+        </div>
+      </section>
 
-        <article className="rounded-[2rem] border border-white/10 bg-slate-950/35 p-6">
-          <div className="flex items-center justify-between">
+      {/* ── Main grid ──────────────────────────────────────────── */}
+      <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+
+        {/* Ranked list */}
+        <article className="rounded-2xl border border-[#ffffff12] bg-[#111113] p-5">
+          <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-sm text-white/55">Ranked shortlist</p>
-              <h2 className="mt-1 text-2xl font-semibold">Animated match cards</h2>
+              <p className="font-mono text-xs uppercase tracking-widest text-[#a8a29e]">Ranked Shortlist</p>
+              <h2 className="mt-0.5 text-lg font-semibold text-[#f2eae3]">Candidates by match score</h2>
             </div>
-            <BrainCircuit className="size-6 text-amber-200" />
+            <Zap className="size-4 text-[#f99c00]" />
           </div>
 
-          <div className="mt-6 space-y-4">
-            {matches.map((candidate, index) => (
-              <article
-                key={candidate.name}
-                className="animate-rise rounded-[1.75rem] border border-white/10 bg-white/5 p-5"
-                style={{ animationDelay: `${index * 140}ms` }}
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h3 className="text-xl font-semibold">{candidate.name}</h3>
-                      <div className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-sm text-emerald-100">
-                        {candidate.fit}% fit
+          <div className="space-y-2.5">
+            {candidates.map((c, i) => {
+              const style = scoreStyle(c.score);
+              const isTop = i === 0;
+              return (
+                <div
+                  key={c.id}
+                  className={`animate-rise rounded-xl border p-4 ${isTop ? "border-[#f99c001a] bg-[#f99c000d]" : "border-[#ffffff0a] bg-[#0c0c0e] hover:bg-[#111113]"}`}
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl font-mono text-xs font-bold ${isTop ? "bg-[#f99c001a] text-[#f99c00]" : "bg-[#ffffff0a] text-[#a8a29e]"}`}>
+                        {c.initials}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-[#f2eae3]">{c.name}</h3>
+                          {isTop && <span className="font-mono text-[10px] text-[#f99c00]">TOP</span>}
+                        </div>
+                        <p className="mt-0.5 text-xs text-[#a8a29e]">{c.location}</p>
                       </div>
                     </div>
-                    <p className="mt-2 text-sm text-white/60">
-                      {candidate.location} · {candidate.stage}
-                    </p>
-                  </div>
-
-                  <Button variant="outline" className="h-10 rounded-full border-white/15 bg-white/8 text-white hover:bg-white/12 hover:text-white">
-                    Review profile
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </div>
-
-                <div className="mt-5 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-                  <div>
-                    <p className="text-sm font-medium text-white/60">Strengths</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {candidate.strengths.map((strength) => (
-                        <span key={strength} className="rounded-full border border-cyan-300/18 bg-cyan-300/10 px-3 py-1 text-sm text-cyan-50/90">
-                          {strength}
-                        </span>
-                      ))}
+                    <div className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-xs font-semibold ${style.text} ${style.bg} ${style.border}`}>
+                      {c.score}%
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-sm font-medium text-white/60">Watchouts</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {candidate.risks.map((risk) => (
-                        <span key={risk} className="rounded-full border border-amber-300/18 bg-amber-300/10 px-3 py-1 text-sm text-amber-50/90">
-                          {risk}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="mt-2.5 flex items-center gap-1.5">
+                    <GitBranch className="size-3 text-[#a8a29e]/40" />
+                    <span className="font-mono text-[10px] text-[#a8a29e]/50">
+                      {c.repoCount} repos · {c.topRepo}
+                    </span>
                   </div>
+
+                  <div className="mt-2.5 h-1 rounded-full bg-[#ffffff0a]">
+                    <div
+                      className="animate-grow-x h-full rounded-full"
+                      style={{
+                        width: `${c.score}%`,
+                        background: isTop ? "linear-gradient(90deg, #f99c00, #ffd236)" : "rgba(255,255,255,0.18)",
+                        animationDelay: `${i * 120}ms`,
+                      }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] text-[#a8a29e]/60">{c.stage}</p>
                 </div>
-              </article>
-            ))}
+              );
+            })}
           </div>
         </article>
+
+        {/* Top candidate detail */}
+        <div className="space-y-4">
+
+          <div className="rounded-2xl border border-[#f99c001a] bg-[#111113] p-6">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Sparkles className="size-3.5 text-[#f99c00]" />
+              <p className="font-mono text-xs font-semibold uppercase tracking-widest text-[#f99c00]/70">
+                AI Match Explanation
+              </p>
+              <span className="ml-auto rounded-full border border-[#ffffff12] bg-[#ffffff0a] px-2 py-0.5 font-mono text-[10px] text-[#a8a29e]">
+                GPT-4o · 2-pass reasoning
+              </span>
+            </div>
+            <h2 className="text-xl font-semibold text-[#f2eae3]">{leader.name}</h2>
+            <div className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${leaderStyle.border} ${leaderStyle.bg}`}>
+              <span className={`font-mono text-xs font-bold ${leaderStyle.text}`}>{leader.score}% semantic match</span>
+            </div>
+            <p className="mt-4 text-sm leading-7 text-[#a8a29e]">{leader.matchSummary}</p>
+          </div>
+
+          <div className="rounded-2xl border border-[#ffffff12] bg-[#0c0c0e] p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-widest text-[#a8a29e]">Skill Vector Radar</p>
+                <h3 className="mt-0.5 text-lg font-semibold text-[#f2eae3]">Code Intelligence Axes</h3>
+              </div>
+              <span className="rounded-full border border-[#f99c001a] bg-[#f99c000d] px-2.5 py-1 font-mono text-[10px] text-[#f99c00]">
+                NLP-extracted · 6 axes
+              </span>
+            </div>
+            <SkillRadar data={leader.radarData} accentColor="#f99c00" />
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {leader.radarData.map((d) => (
+                <div key={d.skill} className="rounded-xl border border-[#ffffff0a] bg-[#111113] px-2.5 py-2 text-center">
+                  <p className="font-mono text-xs font-bold text-[#f99c00]">{d.value}%</p>
+                  <p className="mt-0.5 text-[10px] leading-4 text-[#a8a29e]">{d.skill}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-[#ffffff12] bg-[#111113] p-5">
+              <p className="mb-3 font-mono text-xs uppercase tracking-widest text-[#a8a29e]">Signal Scores</p>
+              <div className="space-y-3">
+                {leader.signals.map((s, i) => (
+                  <div key={s.label}>
+                    <div className="flex items-center justify-between text-xs text-[#a8a29e]">
+                      <span>{s.label}</span>
+                      <span className="font-mono font-semibold text-[#f2eae3]">{s.value}%</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 rounded-full bg-[#ffffff0a]">
+                      <div
+                        className="animate-grow-x h-full rounded-full"
+                        style={{ width: `${s.value}%`, background: "linear-gradient(90deg, #f99c00, #ffd236)", animationDelay: `${i * 100}ms` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-[#00bb7f1a] bg-[#00bb7f0f] p-4">
+                <p className="mb-2.5 font-mono text-[10px] uppercase tracking-widest text-[#00bb7f]/70">
+                  Detected Strengths
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {leader.strengths.map((s) => (
+                    <span key={s} className="rounded-full border border-[#00bb7f1a] bg-[#00bb7f0d] px-2.5 py-1 text-xs text-[#00bb7f]">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#f99c001a] bg-[#f99c000d] p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <ShieldAlert className="size-3.5 text-[#f99c00]/70" />
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-[#f99c00]/70">Risk Signals</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {leader.risks.map((r) => (
+                    <span key={r} className="rounded-full border border-[#f99c001a] bg-[#f99c000d] px-2.5 py-1 text-xs text-[#f99c00]">
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   );
