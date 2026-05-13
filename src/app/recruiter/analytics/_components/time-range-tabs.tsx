@@ -1,6 +1,6 @@
 "use client";
 
-import { Tabs } from "radix-ui";
+import * as Tabs from "@radix-ui/react-tabs";
 import type { TimeRange } from "./mock-data";
 import { TIME_RANGE_OPTIONS } from "./mock-data";
 import { cn } from "@/lib/utils";

@@ -21,12 +21,10 @@ export class RagService {
   }
 
   public async evaluateCandidateCode(jobDescription: string, repoCode: Record<string, any[]>): Promise<any> {
-    console.log("Embedding job description...");
     const jobVector = await generateEmbedding(jobDescription);
 
     let allChunks: { content: string, file: string, repo: string, complexity: number }[] = [];
 
-    console.log("Parsing and chunking candidate code...");
     for (const [repoName, files] of Object.entries(repoCode)) {
       for (const file of files) {
         if (!file.content) continue;
@@ -45,26 +43,37 @@ export class RagService {
       }
     }
 
-    // Limit to the top 10 most complex chunks to avoid massive HF API wait times
-    const chunksToEmbed = allChunks.sort((a,b) => b.complexity - a.complexity).slice(0, 10);
+    // Cap to top 40 most complex chunks as a safety limit, then
+    // re-rank by job-similarity and return top 10.
+    const chunksToEmbed = [...allChunks]
+      .sort((a, b) => b.complexity - a.complexity)
+      .slice(0, 40);
     
-    console.log(`Embedding ${chunksToEmbed.length} code chunks via CodeBERT...`);
-    const results = [];
-    for (const chunkData of chunksToEmbed) {
-       try {
-           const chunkVector = await generateEmbedding(chunkData.content);
-           const similarity = cosineSimilarity(jobVector, chunkVector) || 0;
-           results.push({
-               ...chunkData,
-               similarity
-           });
-       } catch (e) {
-           console.warn("Failed to embed chunk", e);
-       }
-    }
+    const settled = await Promise.all(
+      chunksToEmbed.map(async (chunkData) => {
+        try {
+          const vec = await generateEmbedding(chunkData.content);
+          const sim = cosineSimilarity(jobVector, vec) || 0;
 
-    results.sort((a, b) => b.similarity - a.similarity);
-    
-    return results;
+          return {
+            ...chunkData,
+            similarity: sim,
+          };
+        } catch (e) {
+          console.warn("Embed failed", e);
+          return null;
+        }
+      })
+    );
+
+    const results = settled.filter(
+      (result): result is typeof chunksToEmbed[number] & { similarity: number } => result !== null
+    );
+
+    const topBySimilarity = results
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 10);
+
+    return topBySimilarity;
   }
 }

@@ -19,15 +19,18 @@ import {
   saveDemoSession,
   setActiveDemoSession,
 } from "@/lib/demo-session";
+import { type AnalysisResult } from "@/lib/types";
 
 type DemoSessionContextValue = {
   isReady: boolean;
   session: ActiveDemoSession;
   featuredCandidate: ReturnType<typeof getDemoCandidateById>;
   featuredMatch: ActiveDemoSession["matches"][number];
+  liveAnalysis: AnalysisResult | null;
   candidateHref: string;
   matchesHref: string;
   saveJobDraft: (input: Parameters<typeof saveDemoSession>[0]) => ActiveDemoSession;
+  setLiveAnalysis: (result: AnalysisResult | null) => void;
   syncToSlug: (slug: string) => ActiveDemoSession;
   refresh: (slug?: string) => ActiveDemoSession;
 };
@@ -38,13 +41,49 @@ type DemoSessionProviderProps = Readonly<{
   children: ReactNode;
 }>;
 
+const LIVE_ANALYSIS_STORAGE_KEY = "devscreen.live-analysis.v1";
+
 function readSession(slug?: string) {
   return getDemoSession(slug);
+}
+
+function readLiveAnalysis() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const rawAnalysis = window.localStorage.getItem(LIVE_ANALYSIS_STORAGE_KEY);
+
+  if (!rawAnalysis) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawAnalysis) as AnalysisResult;
+  } catch {
+    window.localStorage.removeItem(LIVE_ANALYSIS_STORAGE_KEY);
+    return null;
+  }
+}
+
+function writeLiveAnalysis(result: AnalysisResult | null) {
+  if (typeof window === "undefined") {
+    return result;
+  }
+
+  if (!result) {
+    window.localStorage.removeItem(LIVE_ANALYSIS_STORAGE_KEY);
+    return null;
+  }
+
+  window.localStorage.setItem(LIVE_ANALYSIS_STORAGE_KEY, JSON.stringify(result));
+  return result;
 }
 
 export function DemoSessionProvider({ children }: DemoSessionProviderProps) {
   const [session, setSession] = useState<ActiveDemoSession>(getDefaultDemoSession());
   const [isReady, setIsReady] = useState(false);
+  const [liveAnalysis, setLiveAnalysisState] = useState<AnalysisResult | null>(null);
 
   const refresh = useCallback((slug?: string) => {
     const nextSession = readSession(slug);
@@ -70,15 +109,29 @@ export function DemoSessionProvider({ children }: DemoSessionProviderProps) {
     return nextSession;
   }, []);
 
+  const setLiveAnalysis = useCallback((result: AnalysisResult | null) => {
+    const nextLiveAnalysis = writeLiveAnalysis(result);
+    startTransition(() => {
+      setLiveAnalysisState(nextLiveAnalysis);
+    });
+  }, []);
+
   useEffect(() => {
     startTransition(() => {
       setSession(readSession());
+      setLiveAnalysisState(readLiveAnalysis());
       setIsReady(true);
     });
 
-    const handleStorage = () => {
+    const handleStorage = (event: StorageEvent) => {
       startTransition(() => {
-        setSession(readSession());
+        if (!event.key || event.key === "devscreen.demo-session.v1") {
+          setSession(readSession());
+        }
+
+        if (!event.key || event.key === LIVE_ANALYSIS_STORAGE_KEY) {
+          setLiveAnalysisState(readLiveAnalysis());
+        }
       });
     };
 
@@ -97,9 +150,11 @@ export function DemoSessionProvider({ children }: DemoSessionProviderProps) {
         session,
         featuredCandidate,
         featuredMatch,
+        liveAnalysis,
         candidateHref: "/candidate",
         matchesHref: `/recruiter/jobs/${session.job.slug}/matches`,
         saveJobDraft,
+        setLiveAnalysis,
         syncToSlug,
         refresh,
       }}

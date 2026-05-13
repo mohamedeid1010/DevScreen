@@ -1,7 +1,9 @@
 "use client";
 
 import { useId, useState } from "react";
-import { DropdownMenu, Select, Tooltip } from "radix-ui";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as Select from "@radix-ui/react-select";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import { Archive, ArrowDown, ArrowUp, ChevronDown, Eye, MoreHorizontal, Pause, Check } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer } from "recharts";
 import type { JobPerformanceRow, JobStatus } from "./mock-data";

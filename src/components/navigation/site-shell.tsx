@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   House,
-  LogIn,
   Radar,
   UserRoundSearch,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { AuthControls } from "@/components/auth/auth-controls";
 import { DemoSessionProvider, useDemoSession } from "@/components/demo/demo-session-provider";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -39,19 +39,11 @@ const primaryNavItems: PrimaryNavItem[] = [
   },
   {
     href: "/candidate",
-    label: "Candidate Lane",
-    shortLabel: "Candidate",
+    label: "Candidate Profile",
+    shortLabel: "Profile",
     icon: UserRoundSearch,
-    description: "Read the candidate story.",
+    description: "View the analyzed candidate's profile.",
     match: (pathname) => pathname.startsWith("/candidate"),
-  },
-  {
-    href: "/login",
-    label: "Secure Access",
-    shortLabel: "Access",
-    icon: LogIn,
-    description: "Preview the access flow.",
-    match: (pathname) => pathname === "/login" || pathname === "/callback",
   },
 ];
 
@@ -122,13 +114,15 @@ export function SiteShell({ children }: SiteShellProps) {
 
 function SiteShellFrame({ children }: SiteShellProps) {
   const pathname = usePathname();
+  const isAuthPage = pathname.startsWith("/login");
   const isRecruiterSite = pathname.startsWith("/recruiter");
+  const loginHref = pathname === "/" ? "/login" : `/login?next=${encodeURIComponent(pathname)}`;
   const activeItem = primaryNavItems.find((item) => item.match(pathname)) ?? primaryNavItems[0];
   const { isReady, session } = useDemoSession();
   const isCandidateSiteView = pathname.startsWith("/candidate");
   const currentRoleLabel = isCandidateSiteView ? (isReady ? session.job.title : "Loading demo") : "Shared demo";
 
-  if (isRecruiterSite) {
+  if (isRecruiterSite || isAuthPage) {
     return <>{children}</>;
   }
 
@@ -164,7 +158,7 @@ function SiteShellFrame({ children }: SiteShellProps) {
                   <div className="hidden min-[980px]:block">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="success" className="px-3 py-1.5 text-[10px]">
-                        Demo Mode
+                        Protected demo
                       </Badge>
                       <Badge variant="secondary" className="px-3 py-1.5 text-[10px]">
                         {activeItem.label}
@@ -176,11 +170,16 @@ function SiteShellFrame({ children }: SiteShellProps) {
                   </div>
                 </div>
 
-                <nav className="hidden flex-wrap items-center gap-2 lg:flex" aria-label="Global navigation">
-                  {primaryNavItems.map((item) => (
-                    <GlobalNavLink key={item.href} item={item} pathname={pathname} />
-                  ))}
-                </nav>
+                <div className="flex flex-col gap-2 lg:items-end">
+                  <nav className="hidden flex-wrap items-center gap-2 lg:flex" aria-label="Global navigation">
+                    {primaryNavItems.map((item) => (
+                      <GlobalNavLink key={item.href} item={item} pathname={pathname} />
+                    ))}
+                  </nav>
+                  <div className="sm:self-start lg:self-auto">
+                    <AuthControls loginHref={loginHref} />
+                  </div>
+                </div>
               </div>
             </div>
           </Card>

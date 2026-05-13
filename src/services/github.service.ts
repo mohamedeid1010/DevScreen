@@ -10,6 +10,7 @@
 
 import "dotenv/config";
 import { Octokit } from "octokit";
+import { getCachedProfile, setCachedProfile } from "./github-cache.service";
 
 /**
  * GitHub Service — uses Octokit to retrieve all user data and repository code
@@ -25,20 +26,115 @@ const SUPPORTED_EXTENSIONS = new Set([
 const MAX_FILE_SIZE_BYTES = 100_000;     // skip files larger than 100 KB
 const MAX_FILES_PER_REPO  = 30;          // cap per repo to stay within rate limits
 const MAX_REPOS_TO_SCAN   = 10;          // only scan the top repos
+const profileCache = new Map<string, { data: any; ts: number }>();
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+let shouldSkipGitHubAuth = false;
+
+function normalizeGitHubToken(token: string | null | undefined) {
+  if (!token) {
+    return null;
+  }
+
+  const normalizedToken = token.trim().replace(/^['"]|['"]$/g, "");
+  const loweredToken = normalizedToken.toLowerCase();
+
+  if (
+    normalizedToken.length === 0 ||
+    loweredToken === "your_github_token" ||
+    loweredToken.startsWith("your_") ||
+    loweredToken.startsWith("replace_") ||
+    loweredToken.includes("placeholder")
+  ) {
+    return null;
+  }
+
+  return normalizedToken;
+}
+
+function isGitHubBadCredentialsError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const status = "status" in error ? (error as { status?: unknown }).status : undefined;
+  const message = "message" in error ? (error as { message?: unknown }).message : undefined;
+  const normalizedMessage = typeof message === "string" ? message.toLowerCase() : "";
+
+  return status === 401 || normalizedMessage.includes("bad credentials");
+}
 
 function getOctokit() {
-  const token = process.env.GITHUB_TOKEN;
+  const token = shouldSkipGitHubAuth ? null : normalizeGitHubToken(process.env.GITHUB_TOKEN);
+
   if (!token) {
-    throw new Error("GITHUB_TOKEN environment variable is not set");
+    return new Octokit();
   }
+
   return new Octokit({ auth: token });
+}
+
+function getOctokitForToken(token: string | null | undefined) {
+  const normalizedToken = normalizeGitHubToken(token);
+
+  if (!normalizedToken) {
+    return getOctokit();
+  }
+
+  return new Octokit({ auth: normalizedToken });
+}
+
+async function fetchLiveGitHubProfile(username: string, authToken?: string | null) {
+  const octokit = getOctokitForToken(authToken);
+  const [profile, repos, languages, commitActivity] = await Promise.all([
+    fetchUserProfile(username, octokit),
+    fetchUserRepos(username, octokit),
+    fetchLanguageStats(username, octokit),
+    fetchCommitActivity(username, octokit),
+  ]);
+
+  // Fetch code from top 3 repos for deep analysis
+  const codeByRepo: Record<string, any[]> = {};
+  const topRepos = repos.slice(0, 3);
+
+  await Promise.all(
+    topRepos.map(async (repo: any) => {
+      const files = await fetchRepoCode(username, repo.name, repo.defaultBranch, octokit);
+      codeByRepo[repo.name] = files;
+    }),
+  );
+
+  const analyzableFileCount = Object.values(codeByRepo).reduce(
+    (count, files) => count + files.length,
+    0,
+  );
+
+  if (analyzableFileCount === 0) {
+    throw new Error("This GitHub user has no analyzable public code.");
+  }
+
+  const result = {
+    profile,
+    repos,
+    languages,
+    commitActivity,
+    codeByRepo,
+  };
+
+  profileCache.set(username, { data: result, ts: Date.now() });
+
+  try {
+    await setCachedProfile(username, result);
+  } catch {
+    // DB cache write failed — in-memory cache still works
+  }
+
+  return result;
 }
 
 /**
  * Fetch the public profile for a GitHub user.
  */
-export async function fetchUserProfile(username: string) {
-  const octokit = getOctokit();
+export async function fetchUserProfile(username: string, octokit = getOctokit()) {
   const { data } = await octokit.rest.users.getByUsername({ username });
 
   return {
@@ -60,8 +156,7 @@ export async function fetchUserProfile(username: string) {
 /**
  * Fetch repositories for a user, sorted by most recently pushed.
  */
-export async function fetchUserRepos(username: string) {
-  const octokit = getOctokit();
+export async function fetchUserRepos(username: string, octokit = getOctokit()) {
   const { data } = await octokit.rest.repos.listForUser({
     username,
     sort: "pushed",
@@ -90,9 +185,8 @@ export async function fetchUserRepos(username: string) {
 /**
  * Aggregate language statistics across all repos.
  */
-export async function fetchLanguageStats(username: string) {
-  const octokit = getOctokit();
-  const repos = await fetchUserRepos(username);
+export async function fetchLanguageStats(username: string, octokit = getOctokit()) {
+  const repos = await fetchUserRepos(username, octokit);
   const totals: Record<string, number> = {};
 
   await Promise.all(
@@ -125,9 +219,8 @@ export async function fetchLanguageStats(username: string) {
 /**
  * Fetch recent commit activity for a user (last 90 days from top repos).
  */
-export async function fetchCommitActivity(username: string) {
-  const octokit = getOctokit();
-  const repos = await fetchUserRepos(username);
+export async function fetchCommitActivity(username: string, octokit = getOctokit()) {
+  const repos = await fetchUserRepos(username, octokit);
   const commits: any[] = [];
 
   const since = new Date();
@@ -166,8 +259,7 @@ export async function fetchCommitActivity(username: string) {
 /**
  * Walk a repo tree and pull the content of supported source files.
  */
-export async function fetchRepoCode(username: string, repoName: string, branch: string = "main") {
-  const octokit = getOctokit();
+export async function fetchRepoCode(username: string, repoName: string, branch: string = "main", octokit = getOctokit()) {
   const files: any[] = [];
 
   try {
@@ -222,30 +314,42 @@ export async function fetchRepoCode(username: string, repoName: string, branch: 
 /**
  * Full pipeline: gather everything the analysis services need.
  */
-export async function fetchFullGitHubProfile(username: string) {
-  const [profile, repos, languages, commitActivity] = await Promise.all([
-    fetchUserProfile(username),
-    fetchUserRepos(username),
-    fetchLanguageStats(username),
-    fetchCommitActivity(username),
-  ]);
+export async function fetchFullGitHubProfile(
+  username: string,
+  forceRefresh = false,
+  options: { authToken?: string | null } = {},
+) {
+  const authToken = options.authToken ?? null;
 
-  // Fetch code from top 3 repos for deep analysis
-  const codeByRepo: Record<string, any[]> = {};
-  const topRepos = repos.slice(0, 3);
+  if (!forceRefresh) {
+    const cached = profileCache.get(username);
 
-  await Promise.all(
-    topRepos.map(async (repo: any) => {
-      const files = await fetchRepoCode(username, repo.name, repo.defaultBranch);
-      codeByRepo[repo.name] = files;
-    }),
-  );
+    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      return cached.data;
+    }
 
-  return {
-    profile,
-    repos,
-    languages,
-    commitActivity,
-    codeByRepo,
-  };
+    try {
+      const dbCached = await getCachedProfile(username);
+
+      if (dbCached) {
+        profileCache.set(username, { data: dbCached.data, ts: Date.now() });
+        return dbCached.data;
+      }
+    } catch {
+      // DB cache unavailable — fall through to live fetch
+    }
+  }
+
+  try {
+    return await fetchLiveGitHubProfile(username, authToken);
+  } catch (error) {
+    if (!isGitHubBadCredentialsError(error) || shouldSkipGitHubAuth) {
+      throw error;
+    }
+
+    shouldSkipGitHubAuth = true;
+    console.warn("Configured GITHUB_TOKEN was rejected by GitHub. Falling back to unauthenticated GitHub requests.");
+
+    return fetchLiveGitHubProfile(username, authToken);
+  }
 }

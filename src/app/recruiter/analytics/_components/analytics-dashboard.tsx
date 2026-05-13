@@ -2,7 +2,10 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { DropdownMenu, Popover, Select, Tooltip } from "radix-ui";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as Popover from "@radix-ui/react-popover";
+import * as Select from "@radix-ui/react-select";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   Check,
   ChevronDown,
@@ -219,6 +222,30 @@ function AnalyticsLoadingState() {
   );
 }
 
+type EmptyFilterStateProps = {
+  title: string;
+  className?: string;
+  onClearFilters: () => void;
+};
+
+function EmptyFilterState({ title, className, onClearFilters }: EmptyFilterStateProps) {
+  return (
+    <section className={cn("animate-rise rounded-2xl border border-[#ffffff12] bg-[#111113] p-5 transition hover:border-[#ffffff1a] lg:p-6", className)}>
+      <div className="rounded-2xl border border-dashed border-[#ffffff12] bg-[#0c0c0e] px-5 py-8 text-center">
+        <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[#a8a29e]">{title}</p>
+        <p className="mt-3 text-sm leading-6 text-[#a8a29e]">
+          No results match the current filters. Adjust filters or clear them.
+        </p>
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" className="h-10 rounded-xl border-[#ffffff12] bg-[#111113] px-4 text-[#f2eae3] hover:bg-[#17171a] hover:text-[#f2eae3]" onClick={onClearFilters}>
+            Clear filters
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function AnalyticsDashboardContent({ initialTimestamp }: AnalyticsDashboardProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [timestamp, setTimestamp] = useState(initialTimestamp);
@@ -327,8 +354,14 @@ function AnalyticsDashboardContent({ initialTimestamp }: AnalyticsDashboardProps
     return matchesRole && matchesSeniority && matchesRegion;
   });
 
-  const jobsToRender = filteredJobs.length > 0 ? filteredJobs : data?.jobs ?? [];
-  const activityToRender = filteredActivity.length > 0 ? filteredActivity : data?.activity ?? [];
+  const jobsToRender = filteredJobs;
+  const activityToRender = filteredActivity;
+
+  function clearFilters() {
+    setRoleFilter(ROLE_FILTER_OPTIONS[0]);
+    setSeniorityFilter(SENIORITY_FILTER_OPTIONS[0]);
+    setRegionFilter(REGION_FILTER_OPTIONS[0]);
+  }
 
   return (
     <div ref={contentRef} className="analytics-scroll-stage space-y-5 text-[#f2eae3]">
@@ -386,7 +419,11 @@ function AnalyticsDashboardContent({ initialTimestamp }: AnalyticsDashboardProps
               <PipelineFunnel stages={data.pipeline} />
             </div>
             <div className="lg:col-span-5">
-              <ActivityFeed items={activityToRender.slice(0, 8)} />
+              {activityToRender.length > 0 ? (
+                <ActivityFeed items={activityToRender.slice(0, 8)} />
+              ) : (
+                <EmptyFilterState title="Live Activity" className="[animation-delay:180ms]" onClearFilters={clearFilters} />
+              )}
             </div>
           </section>
 
@@ -397,7 +434,11 @@ function AnalyticsDashboardContent({ initialTimestamp }: AnalyticsDashboardProps
             <SkillRadar data={data.radar} />
           </section>
 
-          <JobsTable rows={jobsToRender} />
+          {jobsToRender.length > 0 ? (
+            <JobsTable rows={jobsToRender} />
+          ) : (
+            <EmptyFilterState title="Jobs Performance" className="[animation-delay:420ms]" onClearFilters={clearFilters} />
+          )}
 
           <InsightsCard insights={data.insights} />
         </>

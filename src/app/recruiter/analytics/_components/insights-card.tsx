@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tooltip } from "radix-ui";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import type { InsightItem } from "./mock-data";
 import { Button } from "@/components/ui/button";

@@ -58,22 +58,74 @@ function difficultyClasses(difficulty: string) {
   return "border-[#ffffff12] bg-[#111113] text-[#a8a29e]";
 }
 
+function truncateSnippet(input: string, maxLength = 140) {
+  const normalized = input.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength).trimEnd()}...`;
+}
+
 export function CandidateProfileView() {
-  const { featuredCandidate, featuredMatch, matchesHref, session } = useDemoSession();
+  const { featuredCandidate, featuredMatch, liveAnalysis, matchesHref, session } = useDemoSession();
   const [query, setQuery] = useState("");
   const [activeFocus, setActiveFocus] = useState<string | null>(null);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
-  const focusTags = featuredCandidate.focusAreas.slice(0, 4);
-  const visibleRepos = featuredCandidate.topRepos.filter((repo) => {
+  const isLiveAnalysis = liveAnalysis !== null;
+  const candidateName = liveAnalysis?.githubProfile?.name || liveAnalysis?.githubProfile?.login || featuredCandidate.name;
+  const candidateGithubHandle = liveAnalysis?.githubProfile?.login || featuredCandidate.githubHandle;
+  const candidateGithubLabel = candidateGithubHandle ? `github.com/${candidateGithubHandle}` : "GitHub profile unavailable";
+  const candidateLocation = liveAnalysis?.githubProfile?.location || featuredCandidate.location;
+  const candidateFitBand = liveAnalysis?.fitBand || featuredMatch.fitBand;
+  const candidateMatchSummary = liveAnalysis?.matchSummary || featuredMatch.matchSummary;
+  const candidateStrengths = isLiveAnalysis ? liveAnalysis.strengths : featuredCandidate.strengths;
+  const liveCodeChunks = liveAnalysis?.topCodeChunks ?? [];
+  const liveInterviewQuestions = liveAnalysis?.interviewQuestions ?? [];
+  const promptSummary = isLiveAnalysis
+    ? "Live interview prompts generated from the analyzed GitHub profile and top matched code."
+    : featuredCandidate.interviewKit.summary;
+  const focusTags = (isLiveAnalysis ? candidateStrengths : featuredCandidate.focusAreas).slice(0, 4);
+  const repoEvidence = isLiveAnalysis
+    ? liveCodeChunks.map((chunk, index) => {
+        const matchedFocus = candidateStrengths.length > 0
+          ? candidateStrengths[index % candidateStrengths.length]
+          : "Relevant code path";
+        const snippet = truncateSnippet(chunk.content ?? "");
+
+        return {
+          key: `${chunk.repo ?? "repo"}-${chunk.file ?? "file"}-${index}`,
+          repository: chunk.repo ?? "Repository",
+          signal: chunk.file ?? "Matched code",
+          focus: matchedFocus,
+          summary: snippet
+            ? `Matched code excerpt for ${session.job.title}: ${snippet}`
+            : `Matched repository evidence for ${session.job.title}.`,
+          action: chunk.complexity ? `Complexity ${chunk.complexity}` : "Use in follow-up",
+        };
+      })
+    : featuredCandidate.topRepos.map((repo, index) => ({
+        key: repo.name,
+        repository: repo.name,
+        signal: repo.signal,
+        focus: repo.focus,
+        summary: repo.summary,
+        action: index === 0 ? "Lead evidence" : "Use in follow-up",
+      }));
+  const visibleRepos = repoEvidence.filter((repo) => {
     const haystack = [
-      repo.name,
+      repo.repository,
       repo.summary,
       repo.signal,
       repo.focus,
-      featuredCandidate.strengths.join(" "),
-      featuredCandidate.signalReadouts.map((item) => `${item.label} ${item.explanation}`).join(" "),
-      featuredCandidate.activitySummary,
+      candidateStrengths.join(" "),
+      candidateMatchSummary,
     ]
       .join(" ")
       .toLowerCase();
@@ -87,24 +139,26 @@ export function CandidateProfileView() {
   const statCards = [
     {
       label: "MATCH READOUT",
-      value: featuredMatch.fitBand,
-      detail: `Current recruiter readout for ${featuredCandidate.name}.`,
+      value: candidateFitBand,
+      detail: `Current recruiter readout for ${candidateName}.`,
       accent: "border-t-[#ff6568]",
       iconClassName: "text-[#ff6568]",
       icon: Sparkles,
     },
     {
       label: "REPO ANCHORS",
-      value: String(featuredCandidate.topRepos.length).padStart(2, "0"),
-      detail: "Shared evidence carried into the recruiter view.",
+      value: String(repoEvidence.length).padStart(2, "0"),
+      detail: isLiveAnalysis ? "Matched code evidence carried across navigation." : "Shared evidence carried into the recruiter view.",
       accent: "border-t-[#ffffff1f]",
       iconClassName: "text-[#f2eae3]",
       icon: GitBranch,
     },
     {
       label: "QUESTION BANK",
-      value: String(featuredCandidate.interviewKit.questions.length).padStart(2, "0"),
-      detail: `Prompt set ready for ${session.job.title}.`,
+      value: String(isLiveAnalysis ? liveInterviewQuestions.length : featuredCandidate.interviewKit.questions.length).padStart(2, "0"),
+      detail: isLiveAnalysis
+        ? `Prompt set generated for ${session.job.title} from the analyzed GitHub profile.`
+        : `Prompt set ready for ${session.job.title}.`,
       accent: "border-t-[#f99c00]",
       iconClassName: "text-[#f99c00]",
       icon: Radar,
@@ -118,10 +172,17 @@ export function CandidateProfileView() {
         <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className={dashboardPageTheme.highlightBadge}>
-                <Sparkles className="size-3.5" />
-                Demo candidate
-              </Badge>
+              {isLiveAnalysis ? (
+                <Badge className={dashboardPageTheme.highlightBadge}>
+                  <Sparkles className="size-3.5" />
+                  Live analysis
+                </Badge>
+              ) : (
+                <Badge className={dashboardPageTheme.highlightBadge}>
+                  <Sparkles className="size-3.5" />
+                  Demo candidate
+                </Badge>
+              )}
               <Badge variant="secondary" className={dashboardPageTheme.contextBadge}>
                 {session.job.title}
               </Badge>
@@ -131,18 +192,21 @@ export function CandidateProfileView() {
               <h1 className="text-4xl font-semibold tracking-tight text-[#f2eae3] sm:text-[2.8rem]">
                 Candidate Intelligence
               </h1>
+              <p className="mt-2 text-lg font-medium text-[#f2eae3]">{candidateName}</p>
               <p className="mt-2 max-w-3xl text-base leading-7 text-[#a8a29e]">
-                Shared profile evidence, recruiter readout, and readiness signals for the active demo session.
+                {isLiveAnalysis
+                  ? "Shared profile evidence, live recruiter readout, and generated interview prompts for the analyzed GitHub candidate."
+                  : "Shared profile evidence, recruiter readout, and readiness signals for the active demo session."}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-sm text-[#a8a29e]">
               <span className={cn(dashboardPageTheme.metaPill, "text-sm text-[#a8a29e]")}>
                 <UserRound className="size-3.5 text-[#ff6568]" />
-                github.com/{featuredCandidate.githubHandle}
+                {candidateGithubLabel}
               </span>
               <span className={cn(dashboardPageTheme.metaPill, "text-sm text-[#a8a29e]")}>
-                {featuredCandidate.location}
+                {candidateLocation}
               </span>
             </div>
           </div>
@@ -223,11 +287,11 @@ export function CandidateProfileView() {
           <div className="rounded-[22px] border border-[#ffffff12] bg-[#0c0c0e] p-5">
             <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[#a8a29e]">Active prompt set</p>
             <h3 className="mt-3 text-2xl font-semibold tracking-tight text-[#f2eae3]">{session.job.title}</h3>
-            <p className="mt-3 text-sm leading-6 text-[#a8a29e]">{featuredCandidate.interviewKit.summary}</p>
+            <p className="mt-3 text-sm leading-6 text-[#a8a29e]">{promptSummary}</p>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[#a8a29e]">
               <span className={dashboardPageTheme.subtlePill}>Updated {session.updatedAt}</span>
-              <span className={cn("rounded-full border px-3 py-1.5", fitBandClasses(featuredMatch.fitBand))}>
-                Recruiter readout: {featuredMatch.fitBand}
+              <span className={cn("rounded-full border px-3 py-1.5", fitBandClasses(candidateFitBand))}>
+                Recruiter readout: {candidateFitBand}
               </span>
             </div>
           </div>
@@ -236,7 +300,7 @@ export function CandidateProfileView() {
             <div className={dashboardPageTheme.nestedCard}>
               <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#a8a29e]">Question bank</p>
               <p className="mt-3 text-3xl font-semibold tracking-tight text-[#f2eae3]">
-                {featuredCandidate.interviewKit.questions.length}
+                {isLiveAnalysis ? liveInterviewQuestions.length : featuredCandidate.interviewKit.questions.length}
               </p>
               <p className="mt-2 text-sm leading-6 text-[#a8a29e]">Role-tied prompts are ready for the next interview step.</p>
             </div>
@@ -244,9 +308,13 @@ export function CandidateProfileView() {
             <div className={dashboardPageTheme.nestedCard}>
               <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#a8a29e]">Repo sources</p>
               <p className="mt-3 text-3xl font-semibold tracking-tight text-[#f2eae3]">
-                {featuredCandidate.interviewKit.repoSources.length}
+                {isLiveAnalysis ? liveCodeChunks.length : featuredCandidate.interviewKit.repoSources.length}
               </p>
-              <p className="mt-2 text-sm leading-6 text-[#a8a29e]">Seeded repositories backing the interview invite and follow-up prompts.</p>
+              <p className="mt-2 text-sm leading-6 text-[#a8a29e]">
+                {isLiveAnalysis
+                  ? "Matched code chunks backing the live interview prompts."
+                  : "Seeded repositories backing the interview invite and follow-up prompts."}
+              </p>
             </div>
           </div>
         </div>
@@ -257,7 +325,7 @@ export function CandidateProfileView() {
           <div>
             <h2 className="text-3xl font-semibold tracking-tight text-[#f2eae3]">Evidence Board</h2>
             <p className="mt-1 text-sm leading-6 text-[#a8a29e]">
-              Shared repository evidence for {featuredCandidate.name}. {visibleRepos.length} visible repo{visibleRepos.length === 1 ? "" : "s"}.
+              Shared repository evidence for {candidateName}. {visibleRepos.length} visible repo{visibleRepos.length === 1 ? "" : "s"}.
             </p>
           </div>
 
@@ -277,8 +345,8 @@ export function CandidateProfileView() {
             <span className={dashboardPageTheme.subtlePill}>
               Active role: {session.job.title}
             </span>
-            <span className={cn("rounded-full border px-3 py-1.5 text-xs", fitBandClasses(featuredMatch.fitBand))}>
-              Recruiter readout: {featuredMatch.fitBand}
+            <span className={cn("rounded-full border px-3 py-1.5 text-xs", fitBandClasses(candidateFitBand))}>
+              Recruiter readout: {candidateFitBand}
             </span>
           </div>
         </div>
@@ -302,11 +370,11 @@ export function CandidateProfileView() {
                   </td>
                 </tr>
               ) : (
-                visibleRepos.map((repo, index) => (
-                  <tr key={repo.name} className={dashboardPageTheme.tableRow}>
+                visibleRepos.map((repo) => (
+                  <tr key={repo.key} className={dashboardPageTheme.tableRow}>
                     <td className="px-5 py-5 align-top">
                       <div>
-                        <p className="text-lg font-semibold text-[#f2eae3]">{repo.name}</p>
+                        <p className="text-lg font-semibold text-[#f2eae3]">{repo.repository}</p>
                         <p className="mt-1 text-sm text-[#a8a29e]">{repo.signal}</p>
                       </div>
                     </td>
@@ -323,7 +391,7 @@ export function CandidateProfileView() {
                     </td>
                     <td className="px-5 py-5 align-top">
                       <span className="inline-flex rounded-[8px] border border-[#ffffff12] bg-[#17171a] px-3 py-2 text-sm text-[#f2eae3]">
-                        {index === 0 ? "Lead evidence" : "Use in follow-up"}
+                        {repo.action}
                       </span>
                     </td>
                   </tr>
@@ -341,15 +409,38 @@ export function CandidateProfileView() {
             <p className="mt-1 text-sm leading-6 text-[#a8a29e]">Why this profile stays coherent across recruiter and candidate views.</p>
           </div>
           <div className="space-y-3 p-5">
-            {featuredCandidate.signalReadouts.map((signal) => (
-              <div key={signal.label} className={dashboardPageTheme.nestedCard}>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-[#f2eae3]">{signal.label}</p>
-                  <span className={cn("rounded-[8px] border px-3 py-1 text-xs", fitBandClasses(signal.value))}>{signal.value}</span>
+            {isLiveAnalysis ? (
+              <>
+                <div className={dashboardPageTheme.nestedCard}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-[#f2eae3]">Live match summary</p>
+                    <span className={cn("rounded-[8px] border px-3 py-1 text-xs", fitBandClasses(candidateFitBand))}>{candidateFitBand}</span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[#a8a29e]">{candidateMatchSummary}</p>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-[#a8a29e]">{signal.explanation}</p>
-              </div>
-            ))}
+                {(liveAnalysis.watchouts ?? []).map((watchout, index) => (
+                  <div key={`${watchout}-${index}`} className={dashboardPageTheme.nestedCard}>
+                    <p className="text-sm font-medium text-[#f2eae3]">Watchout {String(index + 1).padStart(2, "0")}</p>
+                    <p className="mt-2 text-sm leading-6 text-[#a8a29e]">{watchout}</p>
+                  </div>
+                ))}
+                {!liveAnalysis.watchouts.length ? (
+                  <div className={dashboardPageTheme.nestedCard}>
+                    <p className="text-sm leading-6 text-[#a8a29e]">No live watchouts were returned for this analysis.</p>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              featuredCandidate.signalReadouts.map((signal) => (
+                <div key={signal.label} className={dashboardPageTheme.nestedCard}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-[#f2eae3]">{signal.label}</p>
+                    <span className={cn("rounded-[8px] border px-3 py-1 text-xs", fitBandClasses(signal.value))}>{signal.value}</span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[#a8a29e]">{signal.explanation}</p>
+                </div>
+              ))
+            )}
           </div>
         </section>
 
@@ -357,35 +448,81 @@ export function CandidateProfileView() {
           <section className={dashboardPageTheme.panel}>
             <div className={cn("px-5 py-5", dashboardPageTheme.panelDivider)}>
               <h2 className="text-2xl font-semibold tracking-tight text-[#f2eae3]">Strength Radar</h2>
-              <p className="mt-1 text-sm leading-6 text-[#a8a29e]">Visual summary of the strongest seeded evidence areas.</p>
+              <p className="mt-1 text-sm leading-6 text-[#a8a29e]">
+                {isLiveAnalysis
+                  ? "Live summary of extracted strengths and matched code complexity."
+                  : "Visual summary of the strongest seeded evidence areas."}
+              </p>
             </div>
-            <div className="p-5">
-              <SkillRadar data={featuredCandidate.radarData} accentColor={dashboardPageTheme.chartAccentColor} />
-              <div className="mt-4 flex flex-wrap gap-2">
-                {featuredCandidate.strengths.map((strength) => (
-                  <span key={strength} className="rounded-full border border-[#3af28d33] bg-[#3af28d12] px-3 py-1.5 text-xs text-[#7af7aa]">
-                    {strength}
-                  </span>
-                ))}
+            {isLiveAnalysis ? (
+              <div className="space-y-4 p-5">
+                <div className="rounded-[18px] border border-[#ffffff0a] bg-[#0c0c0e] p-4">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#a8a29e]">Complexity signal</p>
+                  <p className="mt-3 text-3xl font-semibold tracking-tight text-[#f2eae3]">{liveAnalysis.astComplexityScore}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#a8a29e]">Average cyclomatic complexity across the top matched code chunks.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {candidateStrengths.map((strength) => (
+                    <span key={strength} className="rounded-full border border-[#3af28d33] bg-[#3af28d12] px-3 py-1.5 text-xs text-[#7af7aa]">
+                      {strength}
+                    </span>
+                  ))}
+                </div>
+                {!candidateStrengths.length ? (
+                  <div className="rounded-[18px] border border-[#ffffff12] bg-[#111113] p-4 text-sm leading-6 text-[#a8a29e]">
+                    No live strengths were returned for this analysis.
+                  </div>
+                ) : null}
               </div>
-            </div>
+            ) : (
+              <div className="p-5">
+                <SkillRadar data={featuredCandidate.radarData} accentColor={dashboardPageTheme.chartAccentColor} />
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {featuredCandidate.strengths.map((strength) => (
+                    <span key={strength} className="rounded-full border border-[#3af28d33] bg-[#3af28d12] px-3 py-1.5 text-xs text-[#7af7aa]">
+                      {strength}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
 
           <section className={dashboardPageTheme.panel}>
             <div className={cn("px-5 py-5", dashboardPageTheme.panelDivider)}>
               <div className="flex items-center gap-2 text-sm text-[#a8a29e]">
                 <Shield className="size-4 text-[#ff6568]" />
-                Readiness
+                {isLiveAnalysis ? "Live code matches" : "Readiness"}
               </div>
             </div>
             <div className="space-y-3 p-5">
-              {featuredCandidate.readiness.map((item) => (
-                <div key={item.label} className={dashboardPageTheme.nestedCard}>
-                  <p className="text-sm font-medium text-[#f2eae3]">{item.label}</p>
-                  <p className="mt-2 font-mono text-sm text-[#ff6568]">{item.value}</p>
-                  <p className="mt-2 text-sm leading-6 text-[#a8a29e]">{item.sub}</p>
+              {isLiveAnalysis ? (
+                liveCodeChunks.slice(0, 3).map((chunk, index) => (
+                  <div key={`${chunk.repo ?? "repo"}-${chunk.file ?? "file"}-${index}`} className={dashboardPageTheme.nestedCard}>
+                    <p className="text-sm font-medium text-[#f2eae3]">{chunk.repo ?? `Matched repo ${index + 1}`}</p>
+                    <p className="mt-2 font-mono text-sm text-[#ff6568]">{chunk.file ?? "Matched code path"}</p>
+                    <p className="mt-2 text-sm leading-6 text-[#a8a29e]">
+                      {chunk.complexity
+                        ? `Cyclomatic complexity ${chunk.complexity}.`
+                        : "Relevant code path carried into the recruiter analysis."}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                featuredCandidate.readiness.map((item) => (
+                  <div key={item.label} className={dashboardPageTheme.nestedCard}>
+                    <p className="text-sm font-medium text-[#f2eae3]">{item.label}</p>
+                    <p className="mt-2 font-mono text-sm text-[#ff6568]">{item.value}</p>
+                    <p className="mt-2 text-sm leading-6 text-[#a8a29e]">{item.sub}</p>
+                  </div>
+                ))
+              )}
+
+              {isLiveAnalysis && !liveCodeChunks.length ? (
+                <div className={dashboardPageTheme.nestedCard}>
+                  <p className="text-sm leading-6 text-[#a8a29e]">No live code matches were returned for this analysis.</p>
                 </div>
-              ))}
+              ) : null}
             </div>
           </section>
         </div>
@@ -399,12 +536,15 @@ type InterviewKitViewProps = {
 };
 
 export function InterviewKitView({ jobSlug }: InterviewKitViewProps) {
-  const { featuredCandidate, featuredMatch, session, syncToSlug } = useDemoSession();
+  const { featuredCandidate, featuredMatch, liveAnalysis, session, syncToSlug } = useDemoSession();
 
   useEffect(() => {
     syncToSlug(jobSlug);
   }, [jobSlug, syncToSlug]);
 
+  const isLiveAnalysis = liveAnalysis !== null;
+  const liveInterviewQuestions = liveAnalysis?.interviewQuestions ?? [];
+  const liveCodeChunks = liveAnalysis?.topCodeChunks ?? [];
   const isRoleReady = session.job.slug === jobSlug;
   const roleTitle = isRoleReady ? session.job.title : formatRoleTitleFromSlug(jobSlug);
   const candidateName = isRoleReady ? featuredCandidate.name : "Preparing candidate story";
@@ -547,7 +687,49 @@ export function InterviewKitView({ jobSlug }: InterviewKitViewProps) {
             </div>
 
             <div className="grid gap-4 p-5">
-              {interviewKit ? (
+              {isLiveAnalysis ? (
+                liveInterviewQuestions.length > 0 ? (
+                  liveInterviewQuestions.map((question, index) => (
+                    <Card key={`${question}-${index}`} className="rounded-[22px] border border-[#ffffff12] bg-[#0c0c0e] shadow-none">
+                      <CardHeader className="gap-4 pb-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="border-[#ffffff12] bg-[#111113] text-[#d8d0ca]">
+                            Q{index + 1}
+                          </Badge>
+                          <span className="rounded-full border border-[#f99c001a] bg-[#f99c000d] px-3 py-1 font-mono text-[11px] text-[#f99c00]">
+                            Live analysis
+                          </span>
+                          {liveCodeChunks[index]?.repo ? (
+                            <span className="rounded-full border border-[#ffffff12] bg-[#111113] px-3 py-1 font-mono text-[11px] text-[#a8a29e]">
+                              {liveCodeChunks[index]?.repo}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div>
+                          <CardTitle className="text-2xl leading-8 text-[#f2eae3]">{question}</CardTitle>
+                          <CardDescription className="mt-2">
+                            {liveCodeChunks[index]?.file
+                              ? `Anchored to ${liveCodeChunks[index]?.file}`
+                              : "Generated from the analyzed GitHub profile and matched code."}
+                          </CardDescription>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4 pt-5">
+                        <div className="rounded-[18px] border border-[#ffffff0a] bg-[#111113] p-4">
+                          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#a8a29e]">Code context</p>
+                          <p className="mt-2 text-sm leading-6 text-[#f2eae3]">
+                            {truncateSnippet(liveCodeChunks[index]?.content ?? "", 220) || "Generated from the live recruiter analysis for this role."}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="rounded-[20px] border border-[#ffffff12] bg-[#0c0c0e] p-5 text-sm leading-6 text-[#a8a29e]">
+                    No live interview questions were generated for this analysis yet.
+                  </div>
+                )
+              ) : interviewKit ? (
                 interviewKit.questions.map((question) => (
                   <Card key={question.id} className="rounded-[22px] border border-[#ffffff12] bg-[#0c0c0e] shadow-none">
                     <CardHeader className="gap-4 pb-0">

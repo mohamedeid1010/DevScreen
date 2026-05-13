@@ -1,52 +1,64 @@
-"use client";
-
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import {
-  Compass,
-  GitBranch,
-  UserRound,
-} from "lucide-react";
-import { useDemoSession } from "@/components/demo/demo-session-provider";
-import { WorkspaceFrame } from "@/components/navigation/workspace-frame";
+import { CandidateShell } from "@/components/candidate/candidate-shell";
+import { getAnalysisByUserId } from "@/services/analyses.service";
+import { ensureProfileForAuthUser } from "@/services/profile.service";
+import { getAuthUserDisplayName, getAuthUserGitHubLogin } from "@/lib/auth-user";
+import { createClient } from "@/utils/supabase/server";
 
 type CandidateLayoutProps = Readonly<{ children: ReactNode }>;
 
-export default function CandidateLayout({ children }: CandidateLayoutProps) {
-  const { featuredCandidate, featuredMatch, isReady, session } = useDemoSession();
+function describeError(err: unknown) {
+  if (!err) return "unknown";
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object") {
+    const e = err as { message?: string; code?: string; details?: string; hint?: string };
+    return [e.message, e.code, e.details, e.hint].filter(Boolean).join(" | ") || JSON.stringify(err);
+  }
+  return String(err);
+}
 
-  const navItems = [
-    {
-      href: "/candidate",
-      label: "Dashboard",
-      caption: "Shared profile signal and recruiter-facing evidence",
-      icon: UserRound,
-      match: (pathname: string) => pathname === "/candidate",
-    },
-  ];
+export default async function CandidateLayout({ children }: CandidateLayoutProps) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    redirect("/login?next=/candidate");
+  }
+
+  let applicantName = getAuthUserDisplayName(data.user) ?? data.user.email ?? "Applicant";
+  let githubLogin = getAuthUserGitHubLogin(data.user);
+  let fitBand: string | null = null;
+  let matchSummary: string | null = null;
+
+  try {
+    const profile = await ensureProfileForAuthUser(data.user);
+    if (profile) {
+      applicantName = profile.display_name || profile.github_login || profile.email || applicantName;
+      githubLogin = profile.github_login || githubLogin;
+    }
+  } catch (profileError) {
+    console.error("[candidate layout] profile lookup failed:", describeError(profileError));
+  }
+
+  try {
+    const analysis = await getAnalysisByUserId(data.user.id);
+    if (analysis) {
+      fitBand = analysis.fit_band;
+      matchSummary = analysis.match_summary;
+    }
+  } catch (analysisError) {
+    console.error("[candidate layout] analysis lookup failed:", describeError(analysisError));
+  }
 
   return (
-    <WorkspaceFrame
-      brandIcon={Compass}
-      brandIconClassName="border-[#ffffff16] bg-[#f2eae3] text-[#09090b]"
-      brandLabel="Candidate"
-      brandTitle="Signal Portal"
-      headerDescription="Read the same candidate story that powers the recruiter shortlist."
-      headerEyebrow="Candidate Demo Lane"
-      headerStatus={[
-        { label: "Demo candidate", variant: "success" },
-        { label: isReady ? session.job.title : "Loading demo", variant: "secondary" },
-      ]}
-      headerTitle="Shared candidate story"
-      navItems={navItems}
-      spotlightDescription={isReady ? featuredMatch.matchSummary : "Preparing the featured profile and its shared reasoning."}
-      spotlightIcon={GitBranch}
-      spotlightLabel="Featured profile"
-      spotlightTitle={isReady ? `github.com/${featuredCandidate.githubHandle}` : "Loading current profile"}
-      summaryDescription={isReady ? `Role brief: ${session.job.title}. Featured readout: ${featuredMatch.fitBand}.` : "Waiting for the role and candidate story to hydrate."}
-      summaryLabel="Recruiter readout"
-      summaryValue={isReady ? featuredMatch.fitBand : "Loading demo"}
+    <CandidateShell
+      applicantName={applicantName}
+      githubLogin={githubLogin}
+      fitBand={fitBand}
+      matchSummary={matchSummary}
     >
       {children}
-    </WorkspaceFrame>
+    </CandidateShell>
   );
 }

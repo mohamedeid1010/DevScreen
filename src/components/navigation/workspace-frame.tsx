@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { ArrowUpRight, House, LogOut } from "lucide-react";
+import { ArrowUpRight, House } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { AuthControls } from "@/components/auth/auth-controls";
 import { useDemoSession } from "@/components/demo/demo-session-provider";
 import { Badge } from "@/components/ui/badge";
 import type { BadgeVariant } from "@/components/ui/badge";
@@ -74,6 +75,7 @@ export function WorkspaceFrame({
   topLinkLabel = "Home",
 }: WorkspaceFrameProps) {
   const pathname = usePathname();
+  const loginHref = `/login?next=${encodeURIComponent(pathname)}`;
   const { isReady } = useDemoSession();
 
   return (
@@ -99,6 +101,8 @@ export function WorkspaceFrame({
                   <span className="mt-1 block text-base font-semibold text-[#f2eae3]">{brandTitle}</span>
                 </span>
               </Link>
+
+              {!showHeader ? <AuthControls loginHref={loginHref} /> : null}
 
               <div className="rounded-2xl border border-[#ffffff12] bg-[#111113] px-4 py-4">
                 <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#a8a29e]">
@@ -210,13 +214,6 @@ export function WorkspaceFrame({
                     </nav>
                   </div>
 
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-2 self-start rounded-full border border-[#ffffff12] bg-[#111113] px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.24em] text-[#a8a29e] transition hover:border-[#ffffff22] hover:text-[#f2eae3] xl:self-auto"
-                  >
-                    <LogOut className="size-3.5" />
-                    Sign out
-                  </Link>
                 </div>
 
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
