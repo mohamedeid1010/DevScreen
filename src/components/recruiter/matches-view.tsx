@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -46,6 +46,34 @@ function fitBandStyle(fitBand: FitBand) {
 }
 
 export function MatchesView({ jobSlug }: MatchesViewProps) {
+  const [githubUsername, setGithubUsername] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [liveData, setLiveData] = useState<any>(null);
+
+  const handleAnalyze = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!githubUsername) return;
+    setIsAnalyzing(true);
+    setLiveData(null);
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          githubUsername,
+          jobDescription: "Senior Software Engineer. Must be proficient in TypeScript, React, and Node.js. Experience with system architecture and writing scalable, clean code is required." 
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setLiveData(data);
+    } catch (err: any) {
+      alert("Analysis failed: " + err.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const {
     candidateHref,
     featuredCandidate,
@@ -59,8 +87,21 @@ export function MatchesView({ jobSlug }: MatchesViewProps) {
   }, [jobSlug, syncToSlug]);
 
   const roleTitle = session.job.slug === jobSlug ? session.job.title : formatRoleTitleFromSlug(jobSlug);
-  const leader = featuredMatch;
-  const leaderStyle = fitBandStyle(leader.fitBand);
+  
+  const leader = liveData ? {
+      fitBand: liveData.fitBand,
+      matchSummary: liveData.matchSummary,
+      strengths: liveData.strengths,
+      watchouts: liveData.watchouts,
+      topRepo: liveData.topCodeChunks?.[0]?.repo || "Multiple",
+      complexityScore: liveData.astComplexityScore,
+      interviewQuestions: liveData.interviewQuestions,
+  } : featuredMatch;
+
+  const candidateName = liveData ? (liveData.githubProfile?.name || liveData.githubProfile?.login) : featuredCandidate.name;
+  const candidateLocation = liveData ? (liveData.githubProfile?.location || "Remote") : featuredCandidate.location;
+
+  const leaderStyle = fitBandStyle(leader.fitBand as FitBand);
 
   return (
     <div className="space-y-4">
@@ -98,14 +139,29 @@ export function MatchesView({ jobSlug }: MatchesViewProps) {
 
           <div className="shrink-0 rounded-2xl border border-[#ffffff12] bg-[#0c0c0e] p-5 lg:w-[260px]">
             <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-[#a8a29e]">Top match</p>
-            <p className="mt-2 text-2xl font-semibold text-[#f2eae3]">{featuredCandidate.name}</p>
-            <p className="mt-2 text-sm text-[#a8a29e]">{featuredCandidate.location}</p>
+            <p className="mt-2 text-2xl font-semibold text-[#f2eae3]">{candidateName}</p>
+            <p className="mt-2 text-sm text-[#a8a29e]">{candidateLocation}</p>
             <div className={`mt-4 inline-flex rounded-full border px-3 py-1 font-mono text-xs ${leaderStyle.text} ${leaderStyle.bg} ${leaderStyle.border}`}>
               {leader.fitBand}
             </div>
             <p className="mt-4 text-sm leading-6 text-[#a8a29e]">Top repo: {leader.topRepo}</p>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-[#ffffff12] bg-[#111113] p-6">
+        <form onSubmit={handleAnalyze} className="flex gap-3 items-center">
+           <input 
+             type="text" 
+             placeholder="Enter GitHub Username to Analyze..." 
+             className="flex-1 bg-[#0c0c0e] border border-[#ffffff12] rounded-xl px-4 h-11 text-sm text-[#f2eae3] placeholder:text-[#a8a29e]"
+             value={githubUsername}
+             onChange={(e) => setGithubUsername(e.target.value)}
+           />
+           <Button type="submit" disabled={isAnalyzing} className="h-11 rounded-xl px-5 bg-[#f99c00] text-black hover:bg-[#f99c00]/90">
+             {isAnalyzing ? "Analyzing Pipeline..." : "Run AI Analysis"}
+           </Button>
+        </form>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
@@ -185,10 +241,10 @@ export function MatchesView({ jobSlug }: MatchesViewProps) {
                 Shared recruiter reasoning
               </p>
               <span className="ml-auto rounded-full border border-[#ffffff12] bg-[#ffffff0a] px-2 py-0.5 font-mono text-[10px] text-[#a8a29e]">
-                Demo candidate
+                {liveData ? "Live AI Analysis" : "Demo candidate"}
               </span>
             </div>
-            <h2 className="text-xl font-semibold text-[#f2eae3]">{featuredCandidate.name}</h2>
+            <h2 className="text-xl font-semibold text-[#f2eae3]">{candidateName}</h2>
             <div className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${leaderStyle.border} ${leaderStyle.bg}`}>
               <span className={`font-mono text-xs font-bold ${leaderStyle.text}`}>{leader.fitBand}</span>
             </div>
@@ -199,7 +255,7 @@ export function MatchesView({ jobSlug }: MatchesViewProps) {
             <div className="rounded-2xl border border-[#00bb7f1a] bg-[#00bb7f0f] p-4">
               <p className="mb-2.5 font-mono text-[10px] uppercase tracking-widest text-[#00bb7f]/70">Strengths</p>
               <div className="flex flex-wrap gap-1.5">
-                {leader.strengths.map((strength) => (
+                {leader.strengths.map((strength: string) => (
                   <span key={strength} className="rounded-full border border-[#00bb7f1a] bg-[#00bb7f0d] px-2.5 py-1 text-xs text-[#00bb7f]">
                     {strength}
                   </span>
@@ -213,7 +269,7 @@ export function MatchesView({ jobSlug }: MatchesViewProps) {
                 <p className="font-mono text-[10px] uppercase tracking-widest text-[#f99c00]/70">Watchouts</p>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {leader.watchouts.map((watchout) => (
+                {leader.watchouts.map((watchout: string) => (
                   <span key={watchout} className="rounded-full border border-[#f99c001a] bg-[#f99c000d] px-2.5 py-1 text-xs text-[#f99c00]">
                     {watchout}
                   </span>
@@ -221,6 +277,24 @@ export function MatchesView({ jobSlug }: MatchesViewProps) {
               </div>
             </div>
           </div>
+
+          {liveData && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-[#00bb7f1a] bg-[#111113] p-6">
+                <h3 className="text-sm font-semibold text-[#f2eae3]">Code Complexity (AST)</h3>
+                <p className="mt-1 text-3xl font-mono text-[#00bb7f]">{liveData.astComplexityScore}</p>
+                <p className="mt-1 text-xs text-[#a8a29e]">Average Cyclomatic Complexity of top files</p>
+              </div>
+              <div className="rounded-2xl border border-[#ffffff12] bg-[#111113] p-6">
+                <h3 className="text-sm font-semibold text-[#f2eae3]">Generated Interview Questions</h3>
+                <ul className="mt-3 space-y-3">
+                  {liveData.interviewQuestions?.map((q: string, i: number) => (
+                    <li key={i} className="text-sm text-[#a8a29e] border-l-2 border-[#f99c00] pl-3 leading-6">{q}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       </section>
     </div>

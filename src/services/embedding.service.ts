@@ -1,7 +1,6 @@
 // MPNet and codeBERT and store in DB
 
 import { createClient } from "@supabase/supabase-js";
-import { pipeline } from "@xenova/transformers";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -15,23 +14,55 @@ const supabase = createClient(
 console.log("SUPABASE_URL:", process.env.SUPABASE_URL);
 console.log("SUPABASE_KEY exists:", !!process.env.SUPABASE_KEY);
 
-// Lazy load model
-let embedderPromise: Promise<any> | null = null;
+export const generateEmbedding = async (text: string): Promise<number[]> => {
+    const HF_TOKEN = process.env.HUGGINGFACE_API_KEY;
+    if (!HF_TOKEN) throw new Error("Missing HUGGINGFACE_API_KEY in .env");
 
-export const getEmbedder = async () => {
-    if (!embedderPromise) {
-        embedderPromise = pipeline("feature-extraction", "Xenova/all-mpnet-base-v2");
+    const response = await fetch(
+        "https://api-inference.huggingface.co/pipeline/feature-extraction/microsoft/codebert-base",
+        {
+            headers: {
+                Authorization: `Bearer ${HF_TOKEN}`,
+                "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify({ inputs: text }),
+        }
+    );
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`HF API Error: ${response.status} ${response.statusText} - ${errText}`);
     }
-    return embedderPromise;
-};
 
-export const generateEmbedding = async (text: string) => {
-    const embedder = await getEmbedder();
-    const output = await embedder(text, {
-        pooling: "mean",
-        normalize: true
-    });
-    return Array.from(output.data);
+    const result = await response.json();
+    
+    // HF feature-extraction returns shape [1, seq_len, 768]
+    // Apply mean pooling to convert to a single 1D vector (768)
+    if (Array.isArray(result) && Array.isArray(result[0]) && Array.isArray(result[0][0])) {
+        const tokens = result[0];
+        const vectorSize = tokens[0].length;
+        const pooled = new Array(vectorSize).fill(0);
+        
+        for (let token of tokens) {
+            for (let i = 0; i < vectorSize; i++) {
+                pooled[i] += token[i];
+            }
+        }
+        for (let i = 0; i < vectorSize; i++) {
+            pooled[i] /= tokens.length; // mean
+        }
+        
+        // normalize vector
+        const magnitude = Math.sqrt(pooled.reduce((acc, val) => acc + val * val, 0));
+        return pooled.map(val => val / magnitude);
+    } else if (Array.isArray(result) && Array.isArray(result[0])) {
+        return result[0];
+    } else if (Array.isArray(result)) {
+        return result;
+    }
+
+    throw new Error("Unexpected embedding shape from HuggingFace API");
 };
 
 export const getAllCandidates = async () => {

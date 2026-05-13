@@ -1,300 +1,251 @@
-// Octokit, repos, commits, code fetching
-
 /*
   - All Functions
-  -- getGitHubUser(username: string)
-  -- getGitHubRepos(username: string, perPage: number = 30)
-  -- getRepoDetails(owner: string, repo: string)
-  -- getComprehensiveUserProfile(username: string)
-  -- getRepoCode(owner: string, repo: string, branch: string = "main")
+  -- fetchUserProfile(username: string)
+  -- fetchUserRepos(username: string)
+  -- fetchLanguageStats(username: string)
+  -- fetchCommitActivity(username: string)
+  -- fetchRepoCode(username: string, repoName: string, branch: string = "main")
+  -- fetchFullGitHubProfile(username: string)
 */
 
 import "dotenv/config";
 import { Octokit } from "octokit";
 
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN,
-});
+/**
+ * GitHub Service — uses Octokit to retrieve all user data and repository code
+ * for downstream analysis by the AI pipeline.
+ */
 
-export const getGitHubUser = async (username: string) => {
-  try {
-    const response = await octokit.rest.users.getByUsername({
-      username,
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error(`Error fetching user ${username}:`, error.message);
-    throw new Error(`Failed to fetch GitHub user: ${error.message}`);
+const SUPPORTED_EXTENSIONS = new Set([
+  ".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".go", ".rs",
+  ".rb", ".php", ".cs", ".cpp", ".c", ".swift", ".kt", ".dart",
+  ".vue", ".svelte", ".astro",
+]);
+
+const MAX_FILE_SIZE_BYTES = 100_000;     // skip files larger than 100 KB
+const MAX_FILES_PER_REPO  = 30;          // cap per repo to stay within rate limits
+const MAX_REPOS_TO_SCAN   = 10;          // only scan the top repos
+
+function getOctokit() {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error("GITHUB_TOKEN environment variable is not set");
   }
-};
+  return new Octokit({ auth: token });
+}
 
-export const getGitHubRepos = async (
-  username: string,
-  perPage: number = 30,
-) => {
-  try {
-    const response = await octokit.rest.repos.listForUser({
-      username,
-      per_page: perPage,
-      sort: "updated",
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error(`Error fetching repos for ${username}:`, error.message);
-    throw new Error(`Failed to fetch GitHub repos: ${error.message}`);
-  }
-};
+/**
+ * Fetch the public profile for a GitHub user.
+ */
+export async function fetchUserProfile(username: string) {
+  const octokit = getOctokit();
+  const { data } = await octokit.rest.users.getByUsername({ username });
 
-export const getRepoDetails = async (owner: string, repo: string) => {
-  try {
-    const response = await octokit.rest.repos.get({
-      owner,
-      repo,
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error(`Error fetching repo ${owner}/${repo}:`, error.message);
-    throw new Error(`Failed to fetch repository details: ${error.message}`);
-  }
-};
+  return {
+    login:      data.login,
+    name:       data.name,
+    bio:        data.bio,
+    company:    data.company,
+    location:   data.location,
+    blog:       data.blog,
+    avatarUrl:  data.avatar_url,
+    publicRepos: data.public_repos,
+    followers:  data.followers,
+    following:  data.following,
+    createdAt:  data.created_at,
+    updatedAt:  data.updated_at,
+  };
+}
 
-export const getComprehensiveUserProfile = async (username: string) => {
-  try {
-    const { data: profile } = await octokit.rest.users.getByUsername({
-      username,
-    });
+/**
+ * Fetch repositories for a user, sorted by most recently pushed.
+ */
+export async function fetchUserRepos(username: string) {
+  const octokit = getOctokit();
+  const { data } = await octokit.rest.repos.listForUser({
+    username,
+    sort: "pushed",
+    per_page: MAX_REPOS_TO_SCAN,
+    type: "owner",
+  });
 
-    const { data: repos } = await octokit.rest.repos.listForUser({
-      username,
-      per_page: 100,
-      sort: "updated",
-    });
+  return data
+    .filter((repo: any) => !repo.fork)
+    .map((repo: any) => ({
+      name:           repo.name,
+      fullName:       repo.full_name,
+      description:    repo.description,
+      language:       repo.language,
+      stars:          repo.stargazers_count,
+      forks:          repo.forks_count,
+      topics:         repo.topics || [],
+      defaultBranch:  repo.default_branch,
+      updatedAt:      repo.updated_at,
+      pushedAt:       repo.pushed_at,
+      htmlUrl:        repo.html_url,
+      size:           repo.size,
+    }));
+}
 
-    const repositoriesData = await Promise.all(
-      repos.map(async (repo: any) => {
-        let languages = {};
-        try {
-          const { data } = await octokit.rest.repos.listLanguages({
-            owner: username,
-            repo: repo.name,
-          });
-          languages = data;
-        } catch (err: any) {
-          console.warn(
-            `[Warn] Could not fetch languages for ${repo.name}: ${err.message}`,
-          );
+/**
+ * Aggregate language statistics across all repos.
+ */
+export async function fetchLanguageStats(username: string) {
+  const octokit = getOctokit();
+  const repos = await fetchUserRepos(username);
+  const totals: Record<string, number> = {};
+
+  await Promise.all(
+    repos.slice(0, MAX_REPOS_TO_SCAN).map(async (repo: any) => {
+      try {
+        const { data } = await octokit.rest.repos.listLanguages({
+          owner: username,
+          repo: repo.name,
+        });
+        for (const [lang, bytes] of Object.entries(data)) {
+          totals[lang] = (totals[lang] || 0) + (bytes as number);
         }
+      } catch {
+        // private or empty repos — skip silently
+      }
+    }),
+  );
 
-        let recentCommits: any[] = [];
-        try {
-          const { data } = await octokit.rest.repos.listCommits({
-            owner: username,
+  const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0) || 1;
+
+  return Object.entries(totals)
+    .sort(([, a], [, b]) => b - a)
+    .map(([language, bytes]) => ({
+      language,
+      bytes,
+      percentage: Math.round((bytes / grandTotal) * 1000) / 10,
+    }));
+}
+
+/**
+ * Fetch recent commit activity for a user (last 90 days from top repos).
+ */
+export async function fetchCommitActivity(username: string) {
+  const octokit = getOctokit();
+  const repos = await fetchUserRepos(username);
+  const commits: any[] = [];
+
+  const since = new Date();
+  since.setDate(since.getDate() - 90);
+
+  await Promise.all(
+    repos.slice(0, 6).map(async (repo: any) => {
+      try {
+        const { data } = await octokit.rest.repos.listCommits({
+          owner: username,
+          repo: repo.name,
+          author: username,
+          since: since.toISOString(),
+          per_page: 20,
+        });
+
+        for (const commit of data) {
+          commits.push({
             repo: repo.name,
-            per_page: 5,
+            sha: commit.sha.slice(0, 7),
+            message: commit.commit.message.split("\n")[0],
+            date: commit.commit.author?.date,
           });
-
-          recentCommits = data.map((commitData: any) => ({
-            sha: commitData.sha,
-            message: commitData.commit.message,
-            date: commitData.commit.author?.date,
-            authorName: commitData.commit.author?.name,
-            url: commitData.html_url,
-          }));
-        } catch (err: any) {
-          console.warn(
-            `[Warn] Could not fetch commits for ${repo.name}: ${err.message}`,
-          );
         }
+      } catch {
+        // skip repos we can't read
+      }
+    }),
+  );
 
-        return {
-          id: repo.id,
-          name: repo.name,
-          fullName: repo.full_name,
-          description: repo.description,
-          url: repo.html_url,
-          isFork: repo.fork,
-          createdAt: repo.created_at,
-          updatedAt: repo.updated_at,
-          stars: repo.stargazers_count,
-          forks: repo.forks_count,
-          primaryLanguage: repo.language,
-          languages,
-          recentCommits,
-        };
-      }),
-    );
+  return commits.sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  );
+}
 
-    return {
-      profile: {
-        login: profile.login,
-        name: profile.name,
-        avatarUrl: profile.avatar_url,
-        bio: profile.bio,
-        company: profile.company,
-        location: profile.location,
-        email: profile.email,
-        blog: profile.blog,
-        publicRepos: profile.public_repos,
-        followers: profile.followers,
-        following: profile.following,
-        createdAt: profile.created_at,
-        updatedAt: profile.updated_at,
-        url: profile.html_url,
-      },
-      repositories: repositoriesData,
-    };
-  } catch (error: any) {
-    console.error(
-      `Error compiling comprehensive data for ${username}:`,
-      error.message,
-    );
-    throw new Error(
-      `Failed to fetch comprehensive GitHub data: ${error.message}`,
-    );
-  }
-};
+/**
+ * Walk a repo tree and pull the content of supported source files.
+ */
+export async function fetchRepoCode(username: string, repoName: string, branch: string = "main") {
+  const octokit = getOctokit();
+  const files: any[] = [];
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-export const getRepoCode = async (
-  owner: string,
-  repo: string,
-  branch: string = "main",
-) => {
   try {
-    const { data: treeData } = await octokit.rest.git.getTree({
-      owner,
-      repo,
+    const { data: tree } = await octokit.rest.git.getTree({
+      owner: username,
+      repo: repoName,
       tree_sha: branch,
       recursive: "true",
     });
 
-    const allowedExtensions = [
-      // Web
-      ".ts",
-      ".tsx",
-      ".js",
-      ".jsx",
-      ".html",
-      ".css",
-      ".scss",
-      ".sass",
-      ".less",
-      ".vue",
-      ".svelte",
-      // Backend / Native
-      ".py",
-      ".java",
-      ".c",
-      ".cpp",
-      ".h",
-      ".hpp",
-      ".cs",
-      ".go",
-      ".rs",
-      ".php",
-      ".rb",
-      ".swift",
-      ".kt",
-      ".dart",
-      ".m",
-      ".mm",
-      // Scripts
-      ".sh",
-      ".bash",
-      ".bat",
-      ".ps1",
-      // Configs / Data
-      ".json",
-      ".xml",
-      ".yaml",
-      ".yml",
-      ".toml",
-      ".ini",
-      ".env",
-      ".config",
-      // Docs / Text
-      ".md",
-      ".txt",
-      ".csv",
-      ".rtf",
-    ];
-
-    const filteredFiles = (treeData.tree || []).filter((item: any) => {
-      if (item.type !== "blob") return false;
-      if (!item.path) return false;
-
-      // Still ignore heavy dependencies and build folders to prevent rate limit crashes
-      if (
-        item.path.includes("node_modules/") ||
-        item.path.includes("dist/") ||
-        item.path.includes("build/") ||
-        item.path.includes(".next/")
-      )
-        return false;
-
-      const filename = item.path.split("/").pop() || "";
-      const lowerFilename = filename.toLowerCase();
-
-      // Check if it ends with an allowed extension
-      const hasAllowedExtension = allowedExtensions.some((ext) =>
-        lowerFilename.endsWith(ext),
-      );
-
-      // Also allow common text files that don't have extensions
-      const isKnownTextFile = [
-        "dockerfile",
-        "makefile",
-        "license",
-        "gemfile",
-      ].includes(lowerFilename);
-
-      return hasAllowedExtension || isKnownTextFile;
+    const candidates = tree.tree.filter((node: any) => {
+      if (node.type !== "blob") return false;
+      if (!node.path) return false;
+      if (node.size && node.size > MAX_FILE_SIZE_BYTES) return false;
+      const ext = node.path.slice(node.path.lastIndexOf("."));
+      return SUPPORTED_EXTENSIONS.has(ext);
     });
 
-    const repoContent: Record<string, string> = {};
+    const toFetch = candidates.slice(0, MAX_FILES_PER_REPO);
 
-    console.log(
-      `Fetching ${filteredFiles.length} files from ${owner}/${repo}...`,
-    );
+    await Promise.all(
+      toFetch.map(async (node: any) => {
+        try {
+          const { data } = await octokit.rest.git.getBlob({
+            owner: username,
+            repo: repoName,
+            file_sha: node.sha as string,
+          });
 
-    for (const file of filteredFiles) {
-      if (!file.path) continue;
+          const content =
+            data.encoding === "base64"
+              ? Buffer.from(data.content, "base64").toString("utf-8")
+              : data.content;
 
-      try {
-        const { data: fileData } = await octokit.rest.repos.getContent({
-          owner,
-          repo,
-          path: file.path,
-          ref: branch,
-        });
-
-        if (
-          !Array.isArray(fileData) &&
-          fileData.type === "file" &&
-          fileData.content
-        ) {
-          const decodedContent = Buffer.from(
-            fileData.content,
-            "base64",
-          ).toString("utf-8");
-          repoContent[file.path] = decodedContent;
+          files.push({
+            path: node.path,
+            size: node.size,
+            content,
+          });
+        } catch {
+          // skip unreadable blobs
         }
-
-        await delay(200);
-      } catch (err: any) {
-        console.warn(
-          `[Warn] Could not fetch content for ${file.path}: ${err.message}`,
-        );
-      }
-    }
-
-    return repoContent;
-  } catch (error: any) {
-    console.error(
-      `Error fetching repo code for ${owner}/${repo}:`,
-      error.message,
+      }),
     );
-    throw new Error(`Failed to fetch repo code: ${error.message}`);
+  } catch {
+    // repo may be empty or branch doesn't exist
   }
-};
+
+  return files;
+}
+
+/**
+ * Full pipeline: gather everything the analysis services need.
+ */
+export async function fetchFullGitHubProfile(username: string) {
+  const [profile, repos, languages, commitActivity] = await Promise.all([
+    fetchUserProfile(username),
+    fetchUserRepos(username),
+    fetchLanguageStats(username),
+    fetchCommitActivity(username),
+  ]);
+
+  // Fetch code from top 3 repos for deep analysis
+  const codeByRepo: Record<string, any[]> = {};
+  const topRepos = repos.slice(0, 3);
+
+  await Promise.all(
+    topRepos.map(async (repo: any) => {
+      const files = await fetchRepoCode(username, repo.name, repo.defaultBranch);
+      codeByRepo[repo.name] = files;
+    }),
+  );
+
+  return {
+    profile,
+    repos,
+    languages,
+    commitActivity,
+    codeByRepo,
+  };
+}

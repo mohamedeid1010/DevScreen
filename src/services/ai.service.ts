@@ -3,38 +3,51 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-export const analyzeCandidateData = async (userData: any, repoCode?: Record<string, string>) => {
+export const generateCandidateInsights = async (
+    userData: any, 
+    topCodeChunks: any[], 
+    jobDescription: string
+) => {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
       You are an expert technical recruiter and senior software engineer.
-      I am providing you with the comprehensive GitHub data of a job candidate.
+      I am providing you with the comprehensive GitHub data of a job candidate, their best-matching code snippets, and the Job Description.
       
-      Please analyze this candidate's profile, repository statistics, commit history, and source code (if provided) to provide a detailed evaluation of their skills.
+      Your job is to analyze this data and return a JSON object containing insights to populate the recruiter dashboard.
       
-      Focus on:
-      1. Overall Experience & Activity (based on profile and commit history)
-      2. Language & Technology Stack (based on repository language stats)
-      3. Code Quality & Architecture (based on the source code provided)
-      4. Strengths & Weaknesses
-      5. Overall Rating (Out of 10)
+      Job Description:
+      ${jobDescription}
 
-      Format your response in clean Markdown.
-
-      ### Candidate Profile & Repositories Metadata:
+      Candidate Profile & Repositories Metadata:
       ${JSON.stringify(userData)}
 
-      ### Candidate Source Code:
-      ${repoCode ? JSON.stringify(repoCode) : "No source code provided for this analysis."}
+      Best Matching Code Snippets (Based on Cosine Similarity):
+      ${JSON.stringify(topCodeChunks)}
+
+      Return ONLY a valid JSON object matching exactly this structure (no markdown fences, just the raw JSON):
+      {
+        "fitBand": "Strong fit" | "Good fit" | "Poor fit",
+        "matchSummary": "A 2-3 sentence summary of why they are a fit (or not) for this specific role based on their code.",
+        "strengths": ["string", "string", "string"],
+        "watchouts": ["string", "string", "string"],
+        "interviewQuestions": [
+           "A highly specific technical question asking about the logic in their provided code snippet.",
+           "Another specific question..."
+        ]
+      }
     `;
 
-    console.log('Sending candidate data to Gemini 2.5 Flash for analysis...');
+    console.log('Sending candidate data to Gemini for JSON insights...');
     
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const responseText = result.response.text();
     
-    return response.text();
+    // clean markdown fences if gemini returns them
+    const cleaned = responseText.replace(/```json\n|\n```|```/g, '').trim();
+    
+    return JSON.parse(cleaned);
   } catch (error: any) {
     console.error('Error analyzing data with Gemini:', error.message);
     throw new Error(`Failed to analyze data with Gemini: ${error.message}`);
