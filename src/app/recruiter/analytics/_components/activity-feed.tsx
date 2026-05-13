@@ -1,6 +1,7 @@
 "use client";
 
-import { ScrollArea, Tooltip } from "radix-ui";
+import * as ScrollArea from "@radix-ui/react-scroll-area";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import { Activity, ArrowUpRight, ShieldAlert, Sparkles } from "lucide-react";
 import type { ActivityItem } from "./mock-data";
 import { cn } from "@/lib/utils";

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
+import { AuthSessionProvider } from "@/components/auth/auth-session-provider";
 import { SiteShell } from "@/components/navigation/site-shell";
+import { createClient } from "@/utils/supabase/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,7 +29,10 @@ type RootLayoutProps = Readonly<{
   children: ReactNode;
 }>;
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+
   return (
     <html
       lang="en"
@@ -38,7 +43,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
         suppressHydrationWarning
         className="min-h-full flex flex-col bg-background text-foreground selection:bg-foreground selection:text-background"
       >
-        <SiteShell>{children}</SiteShell>
+        <AuthSessionProvider initialUser={data.user ?? null}>
+          <SiteShell>{children}</SiteShell>
+        </AuthSessionProvider>
       </body>
     </html>
   );

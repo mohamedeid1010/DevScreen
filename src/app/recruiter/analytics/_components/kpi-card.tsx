@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { HoverCard } from "radix-ui";
+import * as HoverCard from "@radix-ui/react-hover-card";
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import type { KpiMetric } from "./mock-data";
