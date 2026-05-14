@@ -1,48 +1,38 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { fetchFullGitHubProfile } from '@/services/github.service';
 import { RagService } from '@/services/rag.service';
 import { generateCandidateInsights } from '@/services/ai.service';
 import { saveAnalysisForUser } from '@/services/analyses.service';
-import { getAuthUserGitHubLogin } from '@/lib/auth-user';
-import { createClient } from '@/utils/supabase/server';
 
 const ANALYZE_TIMEOUT_MS = 5 * 60 * 1000;
 const ANALYZE_TIMEOUT_MESSAGE = 'Analysis timed out after 5 minutes';
 const NO_ANALYZABLE_CODE_MESSAGE = 'This GitHub user has no analyzable public code.';
 const NO_ANALYZABLE_CODE_FRIENDLY_MESSAGE = 'This GitHub user has no analyzable public code. Try a user with public source repositories.';
-const GITHUB_OAUTH_COOKIE = 'github_provider_token';
 
 function validateJobDescription(jobDescription: unknown) {
   if (typeof jobDescription !== 'string') {
     return 'jobDescription must be a string';
   }
   if (jobDescription.length < 20 || jobDescription.length > 10000) {
-    return 'jobDescription must be between 20 and 10000 characters';
+    return 'jobDescription must be between 20 and 10,000 characters';
   }
   return null;
 }
 
+function extractGitHubUsername(input: string): string {
+  let cleaned = input.trim();
+  if (cleaned.startsWith('http')) {
+    try {
+      const url = new URL(cleaned);
+      cleaned = url.pathname.replace(/^\/+/, '').split('/')[0];
+    } catch {
+      // not a URL, use as-is
+    }
+  }
+  return cleaned;
+}
+
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const supabase = await createClient();
-  const { data: sessionData } = await supabase.auth.getSession();
-  const githubProviderToken = sessionData.session?.provider_token ?? cookieStore.get(GITHUB_OAUTH_COOKIE)?.value ?? null;
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !userData.user) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-
-  const githubUsername = getAuthUserGitHubLogin(userData.user);
-
-  if (!githubUsername) {
-    return NextResponse.json(
-      { error: 'No GitHub username found on your Supabase account. Sign in with GitHub.' },
-      { status: 400 },
-    );
-  }
-
   let payload: unknown;
 
   try {
@@ -51,6 +41,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Malformed JSON body' }, { status: 400 });
   }
 
+  const rawUsername = (payload as { githubUsername?: unknown })?.githubUsername;
+  if (typeof rawUsername !== 'string' || rawUsername.trim().length === 0) {
+    return NextResponse.json(
+      { error: 'githubUsername is required. Provide a GitHub username or profile URL.' },
+      { status: 400 },
+    );
+  }
+
+  const githubUsername = extractGitHubUsername(rawUsername);
+
   const jobDescription = (payload as { jobDescription?: unknown })?.jobDescription;
   const validationError = validateJobDescription(jobDescription);
 
@@ -58,7 +58,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
-  const userId = userData.user.id;
   const finalJobDescription = jobDescription as string;
   const encoder = new TextEncoder();
 
@@ -75,16 +74,19 @@ export async function POST(request: Request) {
       try {
         await Promise.race([
           (async () => {
-            send({ stage: 'github' });
-            const githubData = await fetchFullGitHubProfile(githubUsername, false, {
-              authToken: githubProviderToken,
-            });
+            // Stage 1: Fetch GitHub profile and repositories
+            send({ stage: 'github', message: `Fetching GitHub profile for @${githubUsername}...` });
+            const githubData = await fetchFullGitHubProfile(githubUsername, false);
+            send({ stage: 'github_done', message: `Fetched profile and ${Object.keys(githubData.codeByRepo).length} repositories.` });
 
+            // Stage 2: AST analysis + embedding generation + similarity calculation
             const ragService = new RagService();
-            send({ stage: 'embeddings' });
-            const topCodeChunks = await ragService.evaluateCandidateCode(finalJobDescription, githubData.codeByRepo);
+            send({ stage: 'embeddings', message: 'Chunking code, computing AST complexity, generating embeddings, and calculating similarity...' });
+            const topCodeChunks = await ragService.evaluateCandidateCode(finalJobDescription, githubData.codeByRepo, githubUsername);
+            send({ stage: 'embeddings_done', message: `Analyzed ${topCodeChunks.length} top code chunks by similarity.` });
 
-            send({ stage: 'insights' });
+            // Stage 3: AI reasoning
+            send({ stage: 'insights', message: 'Running AI analysis with Gemini (fit assessment, strengths, interview questions)...' });
             const insights = await generateCandidateInsights(
               githubData.profile,
               topCodeChunks,
@@ -102,9 +104,10 @@ export async function POST(request: Request) {
               astComplexityScore: avgComplexity,
             };
 
+            // Persist to Supabase
             try {
               await saveAnalysisForUser({
-                userId,
+                userId: '00000000-0000-0000-0000-000000000000',
                 githubUsername,
                 result,
                 jobDescription: finalJobDescription,

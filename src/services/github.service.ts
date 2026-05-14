@@ -92,7 +92,7 @@ async function fetchLiveGitHubProfile(username: string, authToken?: string | nul
     fetchCommitActivity(username, octokit),
   ]);
 
-  // Fetch code from top 3 repos for deep analysis
+  // Fetch code from top 3 repos for deep analysis (prevents timeouts)
   const codeByRepo: Record<string, any[]> = {};
   const topRepos = repos.slice(0, 3);
 

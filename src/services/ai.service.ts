@@ -61,17 +61,28 @@ export const generateCandidateInsights = async (
       Best Matching Code Snippets (Based on Cosine Similarity):
       ${JSON.stringify(topCodeChunks)}
 
-      Return ONLY a valid JSON object matching exactly this structure (no markdown fences, just the raw JSON):
+      Return ONLY a valid JSON object matching exactly this structure (no markdown fences, just the raw JSON).
+      CRITICAL: You MUST provide EXACTLY THREE (3) interview questions in the array.
       {
         "fitBand": "Strong fit" | "Good fit" | "Poor fit",
         "matchSummary": "A 2-3 sentence summary of why they are a fit (or not) for this specific role based on their code.",
         "strengths": ["string", "string", "string"],
         "watchouts": ["string", "string", "string"],
         "interviewQuestions": [
-           "A highly specific technical question asking about the logic in their provided code snippet.",
-           "Another specific question..."
-        ]
+           "Question 1: highly specific technical question asking about the logic in their provided code snippet.",
+           "Question 2: another specific technical question.",
+           "Question 3: a final technical question about their code patterns."
+        ],
+        "skillBreakdown": {
+           "frontend": 0-100,
+           "backend": 0-100,
+           "testing": 0-100,
+           "devops": 0-100,
+           "architecture": 0-100,
+           "documentation": 0-100
+        }
       }
+      The skillBreakdown scores must be integers from 0 to 100 based on evidence from the candidate's actual code and repositories. Score higher if you see relevant frameworks, patterns, configs, tests, CI files, or documentation in their repos.
     `;
     const result = await generateContentWithTimeout(model, prompt);
     const responseText = result.response.text();

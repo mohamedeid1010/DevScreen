@@ -49,7 +49,6 @@ export async function saveAnalysisForUser(input: {
   const analyses = supabase.from("analyses") as any;
 
   const row = {
-    user_id: input.userId,
     github_username: input.githubUsername,
     fit_band: input.result.fitBand,
     match_summary: input.result.matchSummary,
@@ -58,7 +57,7 @@ export async function saveAnalysisForUser(input: {
     analyzed_at: new Date().toISOString(),
   };
 
-  const { error } = await analyses.upsert([row], { onConflict: "user_id" });
+  const { error } = await analyses.insert([row]);
 
   if (error) {
     if (isMissingTableError(error, "analyses")) {

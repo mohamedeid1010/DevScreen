@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server";
-import { updateSession } from "@/utils/supabase/middleware";
+import { NextResponse } from "next/server";
 
+// Simplified middleware — no auth protection for demo mode
 export async function proxy(request: NextRequest) {
-  return updateSession(request);
+  return NextResponse.next();
 }
 
 export const config = {

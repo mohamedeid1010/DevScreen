@@ -31,14 +31,7 @@ export function AuthControls({ className, loginHref }: AuthControlsProps) {
             </Button>
           </form>
         </>
-      ) : (
-        <Button asChild size="sm">
-          <Link href={loginHref}>
-            Log in
-            <LogIn className="size-4" />
-          </Link>
-        </Button>
-      )}
+      ) : null}
     </div>
   );
 }
